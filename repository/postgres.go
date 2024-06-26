@@ -1,23 +1,22 @@
-package PostgreDB
+package repository
 
 import (
-	"Customers/internal/app"
+	"Customers/model"
 	"fmt"
 	_ "github.com/lib/pq"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
-var db *Postgres
+var Db *Postgres
 
 type Postgres struct {
-	db *gorm.DB
+	connect *gorm.DB
 }
 
 func NewPostgres() *Postgres {
-	if db != nil {
-		fmt.Println("Коннект уже создан")
-		return db
+	if Db != nil {
+		return Db
 	} else {
 		//открываем соединение
 		dsn := "host=localhost user=admin password=root dbname=mydatabase port=5432 sslmode=disable"
@@ -26,34 +25,28 @@ func NewPostgres() *Postgres {
 			fmt.Println("Не открылось соединение с базой", err)
 		}
 		//делаем миграцию
-		err = dbCon.AutoMigrate(&app.Entity{})
+		err = dbCon.AutoMigrate(&model.Entity{})
 		if err != nil {
 			fmt.Println("Упала миграция postgres")
 		}
 		//закрываем коннект,если что-то идет не так
-		fmt.Println("Инициализация базы прошла успешно", db)
-		db = &Postgres{dbCon}
-		return db
+		fmt.Println("Инициализация базы прошла успешно", Db)
+		Db = &Postgres{dbCon}
+		return Db
 	}
 }
 
-func (p *Postgres) SaveCustomer(e app.Entity) {
+func (p *Postgres) SaveCustomer(e model.Entity) {
 	fmt.Println("Запущен метод сохранения в базу")
 	fmt.Println(e)
-	result := p.db.Create(&e)
+	result := p.connect.Create(&e)
 	if result.Error != nil {
 		fmt.Println(result.Error)
 	}
 }
 
-/*func (p *Postgres) Restore() []Entity {
-	var entity Entity
-	result := p.db.First(&enti)
-	fmt.Println(entity)
-	if result.Error != nil {
-		fmt.Println("Не удалось восстановить кэш из базы", result.Error)
-	}
-	var entities []Entity
+func (p *Postgres) GetCustomers() []model.Entity {
+	var entities []model.Entity
+
 	return entities
 }
-*/
