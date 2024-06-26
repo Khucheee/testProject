@@ -9,7 +9,10 @@ import (
 func main() {
 	RunKafka()
 	controller := app.NewController()
+	app.NewPostgres()
+	go app.StartListeningKafka()
 	controller.Route()
+
 }
 
 func RunKafka() {
