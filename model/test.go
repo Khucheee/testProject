@@ -11,13 +11,14 @@ type Test struct {
 	Age  int    `json:"Age"`
 }
 
-func (test *Test) Scan(value interface{}) error {
+func (test Test) Scan(value interface{}) error {
 	bytes, ok := value.([]byte)
 	if !ok {
-		return fmt.Errorf("Не получилось конвертировать данные в []byte")
+		return fmt.Errorf("failed to parse test from base into struct")
 	}
+
 	//Парсим данные в структуру test
-	return json.Unmarshal(bytes, test)
+	return json.Unmarshal(bytes, &test)
 }
 
 func (test Test) Value() (driver.Value, error) {

@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"Customers/closer"
 	"Customers/model"
 	_ "github.com/lib/pq"
 	"gorm.io/driver/postgres"
@@ -38,8 +39,26 @@ func GetEntityRepository() EntityRepository {
 		log.Println("migration failed:", err)
 	}
 
+	//инициализируем инстанс репозитория
 	entityRepositoryInstance = &entityRepository{dbConnect}
+
+	//передаем функцию закрытия в клозер для graceful shut down
+	closer.CloseFunctions = append(closer.CloseFunctions, entityRepositoryInstance.CloseEntityRepository())
 	return entityRepositoryInstance
+}
+
+func (repository *entityRepository) CloseEntityRepository() func() {
+	dbInterface, err := repository.db.DB()
+	if err != nil {
+		log.Println("failed to get DB interface while closing connection:", err)
+	}
+	return func() {
+		if err := dbInterface.Close(); err != nil {
+			log.Println("failed while closing DB connection:", err)
+			return
+		}
+		log.Println("entityRepository closed successfully")
+	}
 }
 
 func (repository *entityRepository) SaveEntity(e model.Entity) {

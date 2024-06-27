@@ -1,18 +1,21 @@
 package producer
 
 import (
+	"Customers/closer"
 	"Customers/model"
 	"context"
 	"encoding/json"
 	"github.com/IBM/sarama"
 	kafka "github.com/segmentio/kafka-go"
 	"log"
+	"time"
 )
 
 var entityProducerInstance *entityProducer
 
 type EntityProducer interface {
 	ProduceEntityToKafka(entity model.Entity)
+	CloseEntityProducer() func()
 }
 
 type entityProducer struct {
@@ -29,7 +32,10 @@ func GetEntityProducer() EntityProducer {
 		Brokers: []string{"localhost:9092"},
 		Topic:   "json_topic",
 	})
+
+	//инициализируем инстанс продюсера, передаем функцию клозеру для graceful shutdown
 	entityProducerInstance = &entityProducer{writer}
+	closer.CloseFunctions = append(closer.CloseFunctions, entityProducerInstance.CloseEntityProducer())
 	return entityProducerInstance
 }
 
@@ -53,9 +59,20 @@ func (producer *entityProducer) ProduceEntityToKafka(entity model.Entity) {
 	}
 }
 
+func (producer *entityProducer) CloseEntityProducer() func() {
+	return func() {
+		if err := producer.writer.Close(); err != nil {
+			log.Println("producer closing failed:", err)
+			return
+		}
+		log.Println("entityProduccer closed successfully")
+	}
+}
+
 func CreateTopic(topic string, numPartitions int32, replicationFactor int16) error {
 
 	//создаем админа кластера
+	time.Sleep(time.Second * 10)
 	admin, err := sarama.NewClusterAdmin([]string{"localhost:9092"}, nil)
 	if err != nil {
 		log.Println("failed to create cluster admin to create topic in kafka:", err)
@@ -75,6 +92,7 @@ func CreateTopic(topic string, numPartitions int32, replicationFactor int16) err
 	}
 
 	//создаем топик
+
 	err = admin.CreateTopic(topic, &topicDetail, false)
 	if err != nil && err != sarama.ErrTopicAlreadyExists {
 		log.Println("Failed to create topic in kafka:", err)

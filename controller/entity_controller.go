@@ -1,8 +1,10 @@
 package controller
 
 import (
+	"Customers/closer"
 	"Customers/model"
 	"Customers/service"
+	"context"
 	"github.com/gin-gonic/gin"
 	"log"
 	"net/http"
@@ -12,10 +14,12 @@ var entityControllerInstance *entityController
 
 type EntityController interface {
 	Route()
+	CloseController() func()
 }
 
 type entityController struct {
 	service service.EntityService
+	server  *http.Server
 }
 
 func GetEntityController() EntityController {
@@ -23,8 +27,19 @@ func GetEntityController() EntityController {
 		return entityControllerInstance
 	}
 	entityService := service.GetEntityService()
-	entityControllerInstance = &entityController{entityService}
+	entityControllerInstance = &entityController{service: entityService}
+	closer.CloseFunctions = append(closer.CloseFunctions, entityControllerInstance.CloseController())
 	return entityControllerInstance
+}
+
+func (controller *entityController) CloseController() func() {
+	return func() {
+		ctx := context.Background()
+		if err := controller.server.Shutdown(ctx); err != nil {
+			log.Println("failed to shut server down")
+		}
+		log.Println("entityController closed successfully")
+	}
 }
 
 func (controller *entityController) Route() {
@@ -32,8 +47,13 @@ func (controller *entityController) Route() {
 	router.GET("/getAll", controller.GetAllEntities)
 	router.GET("/getLastOne", controller.GetOneEntity)
 	router.POST("/create", controller.SaveEntity)
-	if err := router.Run("localhost:8080"); err != nil {
-		log.Println("Failed to raise the server:", err)
+
+	//Запускаем сервер
+
+	server := &http.Server{Addr: ":8080", Handler: router}
+	controller.server = server
+	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		log.Println("Server Stopped", err)
 	}
 }
 
@@ -42,7 +62,7 @@ func (controller *entityController) SaveEntity(ctx *gin.Context) {
 	//Парсинг полученной json
 	test := &model.Test{}
 	if err := ctx.BindJSON(test); err != nil {
-		log.Println("Wrong JSON recieved in controller:", err)
+		log.Println("Wrong JSON received in controller:", err)
 	}
 
 	//сохранение данных
