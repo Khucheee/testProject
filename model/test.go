@@ -11,7 +11,7 @@ type Test struct {
 	Age  int    `json:"Age"`
 }
 
-func (test Test) Scan(value interface{}) error {
+func (test *Test) Scan(value interface{}) error {
 	bytes, ok := value.([]byte)
 	if !ok {
 		return fmt.Errorf("failed to parse test from base into struct")

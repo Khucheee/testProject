@@ -5,6 +5,7 @@ import (
 	"Customers/model"
 	"Customers/service"
 	"context"
+	"errors"
 	"github.com/gin-gonic/gin"
 	"log"
 	"net/http"
@@ -19,7 +20,7 @@ type EntityController interface {
 
 type entityController struct {
 	service service.EntityService
-	server  *http.Server
+	server  *http.Server //храню сервер для graceful shutdown
 }
 
 func GetEntityController() EntityController {
@@ -28,6 +29,8 @@ func GetEntityController() EntityController {
 	}
 	entityService := service.GetEntityService()
 	entityControllerInstance = &entityController{service: entityService}
+
+	//передаю функцию остановки для graceful shutdown
 	closer.CloseFunctions = append(closer.CloseFunctions, entityControllerInstance.CloseController())
 	return entityControllerInstance
 }
@@ -49,16 +52,14 @@ func (controller *entityController) Route() {
 	router.POST("/create", controller.SaveEntity)
 
 	//Запускаем сервер
-
 	server := &http.Server{Addr: ":8080", Handler: router}
 	controller.server = server
-	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		log.Println("Server Stopped", err)
+	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		log.Println("Server down:", err)
 	}
 }
 
 func (controller *entityController) SaveEntity(ctx *gin.Context) {
-
 	//Парсинг полученной json
 	test := &model.Test{}
 	if err := ctx.BindJSON(test); err != nil {
