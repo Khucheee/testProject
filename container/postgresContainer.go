@@ -16,7 +16,7 @@ func RunPostgres() {
 	ctx := context.Background()
 	postgreSQLReq := testcontainers.ContainerRequest{
 		Image:        "postgres:latest",
-		ExposedPorts: []string{"5432/tcp", "5433/tcp"},
+		ExposedPorts: []string{"5432/tcp", "5435/tcp"},
 		Env: map[string]string{
 			"POSTGRES_DB":       "mydatabase",
 			"POSTGRES_USER":     "admin",
@@ -38,8 +38,8 @@ func RunPostgres() {
 	if err != nil {
 		log.Println("failed to start postgres container:", err)
 	}
-	time.Sleep(time.Second * 3)
-	//передача функции в closer для gracceful shutdown
+
+	//передача функции в closer для graceful shutdown
 	closer.CloseFunctions = append(closer.CloseFunctions, func() {
 		if err = pgContainer.Terminate(ctx); err != nil {
 			log.Println("failed to terminate postgres container")
@@ -47,4 +47,5 @@ func RunPostgres() {
 		}
 		log.Println("postgres container terminated successfully")
 	})
+	time.Sleep(time.Second * 3)
 }

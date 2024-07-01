@@ -33,8 +33,9 @@ func RunKafka() {
 		Started:          true,
 	})
 	if err != nil {
-		log.Fatalf("Failed to start Kafka container: %v", err)
+		log.Println("Failed to start Kafka container:", err)
 	}
+
 	//передача функции в closer для graceful shutdown
 	closer.CloseFunctions = append(closer.CloseFunctions, func() {
 		if err = kafkaContainer.Terminate(ctx); err != nil {

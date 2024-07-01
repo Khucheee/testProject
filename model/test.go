@@ -16,11 +16,9 @@ func (test *Test) Scan(value interface{}) error {
 	if !ok {
 		return fmt.Errorf("failed to parse test from base into struct")
 	}
-
-	//Парсим данные в структуру test
 	return json.Unmarshal(bytes, &test)
 }
 
-func (test Test) Value() (driver.Value, error) {
+func (test *Test) Value() (driver.Value, error) {
 	return json.Marshal(test)
 }

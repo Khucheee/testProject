@@ -25,7 +25,8 @@ func GetEntityService() EntityService {
 	if entityServiceInstance != nil {
 		return entityServiceInstance
 	}
-	producer.CreateTopic("json_topic", 1, 1)
+	producer.CreateTopic()
+
 	//запускаем прослушивание кафки
 	entityListener := listener.GetEntityListener()
 	go entityListener.StartListening()

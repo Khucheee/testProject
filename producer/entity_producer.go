@@ -5,10 +5,8 @@ import (
 	"Customers/model"
 	"context"
 	"encoding/json"
-	"github.com/IBM/sarama"
 	kafka "github.com/segmentio/kafka-go"
 	"log"
-	"time"
 )
 
 var entityProducerInstance *entityProducer
@@ -65,10 +63,23 @@ func (producer *entityProducer) CloseEntityProducer() func() {
 			log.Println("producer closing failed:", err)
 			return
 		}
-		log.Println("entityProduccer closed successfully")
+		log.Println("entityProducer closed successfully")
 	}
 }
 
+func CreateTopic() {
+	c, err := kafka.Dial("tcp", "localhost:9092")
+	if err != nil {
+		log.Println("failed to create kafka connection while creating topic:", err)
+	}
+	kt := kafka.TopicConfig{Topic: "json_topic", NumPartitions: 1, ReplicationFactor: 1}
+	if err := c.CreateTopics(kt); err != nil {
+		log.Println("something going wrong while creating kafka topic:", err)
+	}
+
+}
+
+/*
 func CreateTopic(topic string, numPartitions int32, replicationFactor int16) error {
 
 	//создаем админа кластера
@@ -100,3 +111,4 @@ func CreateTopic(topic string, numPartitions int32, replicationFactor int16) err
 	}
 	return nil
 }
+*/
