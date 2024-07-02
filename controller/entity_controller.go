@@ -55,7 +55,7 @@ func (controller *entityController) Route() {
 	server := &http.Server{Addr: ":8080", Handler: router}
 	controller.server = server
 	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		log.Println("Server down:", err)
+		log.Println("server down:", err)
 	}
 }
 
@@ -63,7 +63,7 @@ func (controller *entityController) SaveEntity(ctx *gin.Context) {
 	//Парсинг полученной json
 	test := &model.Test{}
 	if err := ctx.BindJSON(test); err != nil {
-		log.Println("Wrong JSON received in controller:", err)
+		log.Println("wrong JSON received in controller:", err)
 	}
 
 	//сохранение данных

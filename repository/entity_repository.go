@@ -42,7 +42,7 @@ func GetEntityRepository() EntityRepository {
 	//инициализируем инстанс репозитория
 	entityRepositoryInstance = &entityRepository{dbConnect}
 
-	//передаем функцию закрытия в клозер для graceful shut down
+	//передаем функцию закрытия в клозер для graceful shutdown
 	closer.CloseFunctions = append(closer.CloseFunctions, entityRepositoryInstance.CloseEntityRepository())
 	return entityRepositoryInstance
 }

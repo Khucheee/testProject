@@ -42,7 +42,7 @@ func GetEntityListener() EntityListener {
 	entityRepository := repository.GetEntityRepository()
 	entityListenerInstance := &entityListener{reader, entityRepository, false}
 
-	//передаем функцию закрытия в клозер для graceful shut down
+	//передаем функцию закрытия в клозер для graceful shutdown
 	closer.CloseFunctions = append(closer.CloseFunctions, entityListenerInstance.CloseEntityListener())
 	return entityListenerInstance
 }

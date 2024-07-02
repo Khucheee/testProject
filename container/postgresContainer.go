@@ -42,7 +42,7 @@ func RunPostgres() {
 	//передача функции в closer для graceful shutdown
 	closer.CloseFunctions = append(closer.CloseFunctions, func() {
 		if err = pgContainer.Terminate(ctx); err != nil {
-			log.Println("failed to terminate postgres container")
+			log.Println("failed to terminate postgres container:", err)
 			return
 		}
 		log.Println("postgres container terminated successfully")

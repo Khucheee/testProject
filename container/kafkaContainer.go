@@ -33,13 +33,13 @@ func RunKafka() {
 		Started:          true,
 	})
 	if err != nil {
-		log.Println("Failed to start Kafka container:", err)
+		log.Println("failed to start Kafka container:", err)
 	}
 
 	//передача функции в closer для graceful shutdown
 	closer.CloseFunctions = append(closer.CloseFunctions, func() {
 		if err = kafkaContainer.Terminate(ctx); err != nil {
-			log.Println("failed to terminate postgres container")
+			log.Println("failed to terminate postgres container:", err)
 			return
 		}
 		log.Println("kafka container terminated successfully")
