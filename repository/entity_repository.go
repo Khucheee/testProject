@@ -1,8 +1,10 @@
 package repository
 
 import (
-	"Customers/closer"
-	"Customers/model"
+	"customers_kuber/closer"
+	"customers_kuber/config"
+	"customers_kuber/model"
+	"fmt"
 	_ "github.com/lib/pq"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -26,8 +28,11 @@ func GetEntityRepository() EntityRepository {
 		return entityRepositoryInstance
 	}
 
+	//устанавливаемм адрес базы
+	dbConfig := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
+		config.PostgresHost, config.PostgresUser, config.PostgresPassword, config.PostgresDatabaseName, config.PostgresPort)
+
 	//открываем соединение
-	dbConfig := "host=localhost user=admin password=root dbname=mydatabase port=5432 sslmode=disable"
 	dbConnect, err := gorm.Open(postgres.Open(dbConfig), &gorm.Config{})
 	if err != nil {
 		log.Println("failed to create database connection:", err)

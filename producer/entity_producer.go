@@ -1,10 +1,12 @@
 package producer
 
 import (
-	"Customers/closer"
-	"Customers/model"
 	"context"
+	"customers_kuber/closer"
+	"customers_kuber/config"
+	"customers_kuber/model"
 	"encoding/json"
+	"fmt"
 	kafka "github.com/segmentio/kafka-go"
 	"log"
 )
@@ -25,12 +27,14 @@ func GetEntityProducer() EntityProducer {
 		return entityProducerInstance
 	}
 
+	//определяю адрес кафки
+	kafkaAddress := fmt.Sprintf("%s:%s", config.KafkaHost, config.KafkaPort)
+
 	//создаем продюсера для отправки сообщений в kafka
 	writer := kafka.NewWriter(kafka.WriterConfig{
-		Brokers: []string{"localhost:9092"},
-		Topic:   "json_topic",
+		Brokers: []string{kafkaAddress}, ///здесь нужно помнить про адрес
+		Topic:   config.KafkaTopic,
 	})
-
 	//инициализируем инстанс продюсера, передаем функцию клозеру для graceful shutdown
 	entityProducerInstance = &entityProducer{writer}
 	closer.CloseFunctions = append(closer.CloseFunctions, entityProducerInstance.CloseEntityProducer())
@@ -68,12 +72,14 @@ func (producer *entityProducer) CloseEntityProducer() func() {
 }
 
 func CreateTopic() {
-	c, err := kafka.Dial("tcp", "localhost:9092")
+	kafkaAddress := fmt.Sprintf("%s:%s", config.KafkaHost, config.KafkaPort)
+
+	kafkaConnect, err := kafka.Dial("tcp", kafkaAddress)
 	if err != nil {
 		log.Println("failed to create kafka connection while creating topic:", err)
 	}
-	kt := kafka.TopicConfig{Topic: "json_topic", NumPartitions: 1, ReplicationFactor: 1}
-	if err := c.CreateTopics(kt); err != nil {
+	topicConfig := kafka.TopicConfig{Topic: config.KafkaTopic, NumPartitions: 1, ReplicationFactor: 1}
+	if err := kafkaConnect.CreateTopics(topicConfig); err != nil {
 		log.Println("something going wrong while creating kafka topic:", err)
 	}
 

@@ -1,8 +1,8 @@
 package container
 
 import (
-	"Customers/closer"
 	"context"
+	"customers_kuber/closer"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-connections/nat"
 	"github.com/testcontainers/testcontainers-go"

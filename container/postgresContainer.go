@@ -1,8 +1,8 @@
 package container
 
 import (
-	"Customers/closer"
 	"context"
+	"customers_kuber/closer"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-connections/nat"
 	"github.com/testcontainers/testcontainers-go"
@@ -18,8 +18,8 @@ func RunPostgres() {
 		Image:        "postgres:latest",
 		ExposedPorts: []string{"5432/tcp", "5435/tcp"},
 		Env: map[string]string{
-			"POSTGRES_DB":       "mydatabase",
-			"POSTGRES_USER":     "admin",
+			"POSTGRES_DB":       "postgres",
+			"POSTGRES_USER":     "postgres",
 			"POSTGRES_PASSWORD": "root",
 		},
 

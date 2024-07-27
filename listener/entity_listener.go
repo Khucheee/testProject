@@ -1,11 +1,13 @@
 package listener
 
 import (
-	"Customers/closer"
-	"Customers/model"
-	"Customers/repository"
 	"context"
+	"customers_kuber/closer"
+	"customers_kuber/config"
+	"customers_kuber/model"
+	"customers_kuber/repository"
 	"encoding/json"
+	"fmt"
 	"github.com/segmentio/kafka-go"
 	"log"
 	"time"
@@ -29,13 +31,16 @@ func GetEntityListener() EntityListener {
 		return entityListenerInstance
 	}
 
+	//определяю адрес кафки
+	kafkaAddress := fmt.Sprintf("%s:%s", config.KafkaHost, config.KafkaPort)
+
 	//Создаю объект для чтения сообщений из kafka
 	reader := kafka.NewReader(kafka.ReaderConfig{
-		Brokers:  []string{"localhost:9092"},
-		Topic:    "json_topic",
-		GroupID:  "json_consumer_group",
-		MinBytes: 10e3, // 10KB
-		MaxBytes: 10e6, // 10MB
+		Brokers: []string{kafkaAddress}, // здесь адрес подключения к кафке
+		Topic:   config.KafkaTopic,
+		//GroupID:  "json_consumer_group",
+		//MinBytes: 10e3, // 10KB
+		//MaxBytes: 10e6, // 10MB
 	})
 
 	//инициализируем инсстанс листенера

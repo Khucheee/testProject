@@ -1,10 +1,10 @@
 package controller
 
 import (
-	"Customers/closer"
-	"Customers/model"
-	"Customers/service"
 	"context"
+	"customers_kuber/closer"
+	"customers_kuber/model"
+	"customers_kuber/service"
 	"errors"
 	"github.com/gin-gonic/gin"
 	"log"
@@ -38,9 +38,11 @@ func GetEntityController() EntityController {
 func (controller *entityController) CloseController() func() {
 	return func() {
 		ctx := context.Background()
-		if err := controller.server.Shutdown(ctx); err != nil {
-			log.Println("failed to shut server down")
-		}
+		go func() {
+			if err := controller.server.Shutdown(ctx); err != nil {
+				log.Println("failed to shut server down")
+			}
+		}()
 		log.Println("entityController closed successfully")
 	}
 }

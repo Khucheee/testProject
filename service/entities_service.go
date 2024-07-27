@@ -1,10 +1,10 @@
 package service
 
 import (
-	"Customers/listener"
-	"Customers/model"
-	"Customers/producer"
-	"Customers/repository"
+	"customers_kuber/listener"
+	"customers_kuber/model"
+	"customers_kuber/producer"
+	"customers_kuber/repository"
 	"github.com/google/uuid"
 )
 

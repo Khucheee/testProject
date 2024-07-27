@@ -14,8 +14,11 @@ func CtrlC() {
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 	<-sigChan
 	log.Println("Receive signal to stop working")
-	for _, closeFunction := range CloseFunctions {
-		closeFunction()
+	for iterator := len(CloseFunctions) - 1; iterator >= 0; iterator-- {
+		CloseFunctions[iterator]()
 	}
+	//for _, closeFunction := range CloseFunctions {
+	//	closeFunction()
+	//}
 
 }
