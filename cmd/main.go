@@ -5,6 +5,7 @@ import (
 	"customers_kuber/config"
 	"customers_kuber/container"
 	"customers_kuber/controller"
+	"fmt"
 	"log"
 	"sync"
 )
@@ -16,10 +17,11 @@ func main() {
 
 	//проверка окружения, если запуск локальный, используем testcontainers
 	if config.Kuber == "" {
+		container.RunRedis()
 		container.RunPostgres()
 		container.RunKafka()
 	}
-
+	fmt.Println("создали контейнеры идем дальше")
 	//отлавливаем сигнал ctrl+c для graceful shutdown
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -29,6 +31,7 @@ func main() {
 	}()
 
 	//запускаем сервис
+	fmt.Println("ушли в роут")
 	controller.GetEntityController().Route()
 
 	//ждем завершения graceful shutdown
