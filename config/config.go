@@ -11,6 +11,9 @@ var PostgresPort string
 var PostgresDatabaseName string
 var PostgresPassword string //храним с секрете
 var PostgresUser string     //храним в секрете
+var RedisHost string
+var RedisPort string
+var RedisPassword string
 
 func SetConfig() {
 	Kuber = os.Getenv("kuber")
@@ -31,6 +34,13 @@ func SetConfig() {
 		PostgresPort = "5432"
 	}
 
+	if RedisHost = os.Getenv("redishost"); RedisHost == "" {
+		RedisHost = "localhost"
+	}
+	if RedisPort = os.Getenv("redisport"); RedisPort == "" {
+		RedisPort = "6379"
+	}
+
 	//в случае с локальным запуском пароль и логин от базы можно забирать с помощью флагов командной строки
 	//но тогда все равно придется указывать дефолтные значения на случай если аргументов нет
 	if PostgresDatabaseName = os.Getenv("postgresdatabasename"); PostgresDatabaseName == "" {
@@ -41,5 +51,8 @@ func SetConfig() {
 	}
 	if PostgresUser = os.Getenv("postgresuser"); PostgresUser == "" {
 		PostgresUser = "postgres"
+	}
+	if RedisPassword = os.Getenv("redispassword"); RedisPassword == "" {
+		RedisPassword = ""
 	}
 }
