@@ -7,6 +7,7 @@ import (
 	"customers_kuber/service"
 	"errors"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"log"
 	"net/http"
 )
@@ -23,16 +24,23 @@ type entityController struct {
 	server  *http.Server //храню сервер для graceful shutdown
 }
 
-func GetEntityController() EntityController {
+func GetEntityController() (EntityController, error) {
+
+	//ессли сущность уже есть, возвращаем её
 	if entityControllerInstance != nil {
-		return entityControllerInstance
+		return entityControllerInstance, nil
 	}
-	entityService := service.GetEntityService()
+
+	//получаем сервис
+	entityService, err := service.GetEntityService()
 	entityControllerInstance = &entityController{service: entityService}
+	if err != nil {
+		return entityControllerInstance, err
+	}
 
 	//передаю функцию остановки для graceful shutdown
 	closer.CloseFunctions = append(closer.CloseFunctions, entityControllerInstance.CloseController())
-	return entityControllerInstance
+	return entityControllerInstance, nil
 }
 
 func (controller *entityController) CloseController() func() {
@@ -48,37 +56,90 @@ func (controller *entityController) CloseController() func() {
 }
 
 func (controller *entityController) Route() {
+
+	//роутинг
 	router := gin.Default()
 	router.GET("/getAll", controller.GetAllEntities)
-	router.GET("/getLastOne", controller.GetOneEntity)
 	router.POST("/create", controller.SaveEntity)
+	router.PUT("/:id", controller.UpdateEntity)
+	router.DELETE("/:id", controller.DeleteEntity)
 
 	//Запускаем сервер
 	server := &http.Server{Addr: ":8080", Handler: router}
 	controller.server = server
 	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		log.Println("server down:", err)
+		log.Printf("server down: %s", err)
 	}
 }
 
 func (controller *entityController) SaveEntity(ctx *gin.Context) {
+
 	//Парсинг полученной json
 	test := &model.Test{}
 	if err := ctx.BindJSON(test); err != nil {
-		log.Println("wrong JSON received in controller:", err)
+		log.Printf("wrong JSON received in saveEntity: %s", err)
+		ctx.Status(http.StatusBadRequest)
 	}
 
 	//сохранение данных
-	controller.service.SaveEntity(*test)
+	if err := controller.service.SaveEntity(*test); err != nil {
+		ctx.Status(http.StatusInternalServerError)
+		return
+	}
 
-	//ответ от сервераа
-	ctx.Status(http.StatusCreated)
+	//если все ок
+	ctx.Status(http.StatusAccepted)
 }
 
 func (controller *entityController) GetAllEntities(ctx *gin.Context) {
-	ctx.JSON(http.StatusOK, controller.service.GetAllEntities())
+	entities, err := controller.service.GetAllEntities(ctx.Request.URL.Path)
+	if err != nil {
+		ctx.Status(http.StatusInternalServerError)
+		return
+	}
+	ctx.JSON(http.StatusOK, entities)
 }
 
-func (controller *entityController) GetOneEntity(ctx *gin.Context) {
-	ctx.JSON(http.StatusOK, controller.service.GetOneEntity())
+func (controller *entityController) UpdateEntity(ctx *gin.Context) {
+
+	//парсю json и передаю сервису, если не получилось распарсить, ошибка
+	entity := &model.Entity{}
+	if err := ctx.BindJSON(entity); err != nil {
+		log.Println("updateEntity:wrong JSON received in controller:", err)
+	}
+
+	//проверка на uuid
+	if err := uuid.Validate(ctx.Param("id")); err != nil {
+		ctx.JSON(http.StatusBadRequest, "param is not uuid")
+	}
+
+	//сравниваем id в теле и в урле, если не совпадают, ошибка
+	if entity.Id != ctx.Param("id") {
+		ctx.JSON(http.StatusTeapot, "wrong id")
+		return
+	}
+
+	//обновляем данные
+	test := entity.Test
+	err := controller.service.UpdateEntity(model.Entity{Id: ctx.Param("id"), Test: test})
+	if err != nil {
+		if err.Error() == "record not found" {
+			ctx.Status(http.StatusNotFound)
+			return
+		}
+		ctx.Status(http.StatusInternalServerError)
+		return
+	}
+
+	//если дошли до сюда, значит все обновилось, отправляем 200
+	ctx.Status(http.StatusOK)
+
+}
+
+func (controller *entityController) DeleteEntity(ctx *gin.Context) {
+	if err := controller.service.DeleteEntity(ctx.Param("id")); err != nil {
+		ctx.Status(http.StatusInternalServerError)
+		return
+	}
+	ctx.Status(http.StatusOK)
 }

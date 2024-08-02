@@ -8,6 +8,7 @@ import (
 	_ "github.com/lib/pq"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 	"log"
 )
 
@@ -15,17 +16,18 @@ var entityRepositoryInstance *entityRepository
 
 type EntityRepository interface {
 	SaveEntity(e model.Entity)
-	GetEntities() []model.Entity
-	GetOneEntity() model.Entity
+	GetEntities() ([]model.Entity, error)
+	UpdateEntity(model.Entity) error
+	DeleteEntity(string) error
 }
 
 type entityRepository struct {
 	db *gorm.DB
 }
 
-func GetEntityRepository() EntityRepository {
+func GetEntityRepository() (EntityRepository, error) {
 	if entityRepositoryInstance != nil {
-		return entityRepositoryInstance
+		return entityRepositoryInstance, nil
 	}
 
 	//устанавливаемм адрес базы
@@ -33,23 +35,25 @@ func GetEntityRepository() EntityRepository {
 		config.PostgresHost, config.PostgresUser, config.PostgresPassword, config.PostgresDatabaseName, config.PostgresPort)
 
 	//открываем соединение
-	dbConnect, err := gorm.Open(postgres.Open(dbConfig), &gorm.Config{})
+	dbConnect, err := gorm.Open(postgres.Open(dbConfig), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Info),
+	})
+
+	//инициализируем инстанс репозитория
+	entityRepositoryInstance = &entityRepository{dbConnect}
 	if err != nil {
-		log.Println("failed to create database connection:", err)
+		return entityRepositoryInstance, fmt.Errorf("failed to create database connection: %s", err)
 	}
 
 	//делаем миграцию
 	err = dbConnect.AutoMigrate(&model.Entity{})
 	if err != nil {
-		log.Println("migration failed:", err)
+		return entityRepositoryInstance, fmt.Errorf("migration failed: %s", err)
 	}
-
-	//инициализируем инстанс репозитория
-	entityRepositoryInstance = &entityRepository{dbConnect}
 
 	//передаем функцию закрытия в клозер для graceful shutdown
 	closer.CloseFunctions = append(closer.CloseFunctions, entityRepositoryInstance.CloseEntityRepository())
-	return entityRepositoryInstance
+	return entityRepositoryInstance, nil
 }
 
 func (repository *entityRepository) CloseEntityRepository() func() {
@@ -75,22 +79,51 @@ func (repository *entityRepository) SaveEntity(e model.Entity) {
 	}
 }
 
-func (repository *entityRepository) GetEntities() []model.Entity {
+func (repository *entityRepository) GetEntities() ([]model.Entity, error) {
 
 	//запрашиваем в базе все записи Entities
 	var entities []model.Entity
 	if result := repository.db.Find(&entities); result.Error != nil {
-		log.Println(result.Error)
-		return entities
+		log.Printf("failed to get all entities from repository: %s", result.Error)
+		return entities, result.Error
 	}
-	return entities
+	return entities, nil
 }
 
-func (repository *entityRepository) GetOneEntity() model.Entity {
-	var entity model.Entity
-	if result := repository.db.First(&entity); result.Error != nil {
-		log.Println(result.Error)
-		return entity
+func (repository *entityRepository) UpdateEntity(entity model.Entity) error {
+	//проверяем наличие записи в базе
+	checkExistence := model.Entity{}
+	result := repository.db.Where("id=?", entity.Id).First(&checkExistence)
+	if result.Error != nil {
+		log.Printf("failed to find row while updating entity: %s", result.Error)
+		return result.Error
 	}
+
+	//если запись нашлась, то обновляю её
+	if result = repository.db.Where("id=?", entity.Id).Updates(&entity); result.Error != nil {
+		log.Printf("failed to update data in repository: %s", result.Error)
+		return result.Error
+	}
+	log.Println("entity updated successfully")
+	return nil
+}
+
+func (repository *entityRepository) DeleteEntity(id string) error {
+	entity := model.Entity{}
+	if result := repository.db.Where("Id = ?", id).Delete(&entity); result.Error != nil {
+		return fmt.Errorf("failed to delete data from repository: %s", result.Error)
+	}
+	log.Println("deleting from database ended successfully")
+	return nil
+}
+
+/*
+func (repository *entityRepository) DeleteEntity(id string) model.Entity {
+	entity := model.Entity{}
+	if result := repository.db.Clauses(clause.Returning{}).Where("Id = ?", id).Delete(&entity); result.Error != nil {
+		log.Println(result.Error)
+	}
+	log.Println("deleted from database ended: ", entity)
 	return entity
 }
+*/

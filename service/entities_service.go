@@ -6,6 +6,7 @@ import (
 	"customers_kuber/model"
 	"customers_kuber/producer"
 	"customers_kuber/repository"
+	"fmt"
 	"github.com/google/uuid"
 	"log"
 )
@@ -13,9 +14,10 @@ import (
 var entityServiceInstance *entityService
 
 type EntityService interface {
-	SaveEntity(test model.Test)
-	GetAllEntities() []model.Entity
-	GetOneEntity() model.Entity
+	SaveEntity(model.Test) error
+	GetAllEntities(string) ([]model.Entity, error)
+	UpdateEntity(model.Entity) error
+	DeleteEntity(string) error
 }
 
 type entityService struct {
@@ -24,56 +26,103 @@ type entityService struct {
 	cache      cache.EntityCache
 }
 
-func GetEntityService() EntityService {
+func GetEntityService() (EntityService, error) {
+
+	//если сущность уже создана, то возвращаем её
 	if entityServiceInstance != nil {
-		return entityServiceInstance
+		return entityServiceInstance, nil
 	}
-	producer.CreateTopic()
+
+	//создаем топик в кафке
+	if err := producer.CreateTopic(); err != nil {
+		return entityServiceInstance, fmt.Errorf("failed to create service: %s", err)
+	}
+
+	//создаем листенера
+	entityListener, err := listener.GetEntityListener()
+	if err != nil {
+		return entityServiceInstance, fmt.Errorf("failed to create service: %s", err)
+	}
 
 	//запускаем прослушивание кафки
-	entityListener := listener.GetEntityListener()
 	go entityListener.StartListening()
 
 	//получаем коннект к базе
-	entityRepository := repository.GetEntityRepository()
-
+	entityRepository, err := repository.GetEntityRepository()
+	if err != nil {
+		return entityServiceInstance, fmt.Errorf("failed to create service: %s", err)
+	}
 	//полчаем продюсера
-	entityProducer := producer.GetEntityProducer()
+	//тут внутри нужно допилить обработку ошибок
+	entityProducer, err := producer.GetEntityProducer()
+	if err != nil {
+		return entityServiceInstance, fmt.Errorf("failed to create service: %s", err)
+	}
 
 	//получаем доступ к кэшу
-	entityCache := cache.GetEntityCache()
+	entityCache, err := cache.GetEntityCache()
+	if err != nil {
+		log.Println(err)
+	}
 
 	entityServiceInstance = &entityService{entityRepository, entityProducer, entityCache}
-	return entityServiceInstance
+	return entityServiceInstance, nil
 }
 
-func (service *entityService) SaveEntity(test model.Test) {
+func (service *entityService) SaveEntity(test model.Test) error {
+	//прокидываем путь для формирования ключа по которому будем обращаться в кэш
+
 	//собираем структуру entity
 	entity := model.Entity{Id: uuid.NewString(), Test: test}
 
 	//отдаем данные продюсеру
-	service.producer.ProduceEntityToKafka(entity)
+	if err := service.producer.ProduceEntityToKafka(entity); err != nil {
+		return err
+	}
 
 	//удаляем кэш
 	service.cache.ClearCache()
+	return nil
 }
 
-func (service *entityService) GetAllEntities() []model.Entity {
-	//забираем кэш
+func (service *entityService) GetAllEntities(pathForCache string) ([]model.Entity, error) {
+	//прокидываем путь для формирования ключа по которому будем обращаться в кэш
+	service.cache.SetPath(pathForCache)
+	//обращаемся к кэшу
 	if entities := service.cache.GetCache(); entities != nil {
-		log.Println("getting data from cache")
-		return entities
+		return entities, nil
 	}
 
 	//если кэш пустой, то идём в базу
 	log.Println("cache is empty")
-	entities := service.repository.GetEntities()
+	entities, err := service.repository.GetEntities()
+	if err != nil {
+		return entities, err
+	}
 
 	//обновляем кэш
 	service.cache.UpdateCache(entities)
-	return entities
+	return entities, nil
 }
 
-func (service *entityService) GetOneEntity() model.Entity {
-	return service.repository.GetOneEntity()
+func (service *entityService) UpdateEntity(entity model.Entity) error {
+
+	//обновляем данные в репозитории
+	if err := service.repository.UpdateEntity(entity); err != nil {
+		return err
+	}
+
+	//если данные обновились, то чистим кэш
+	service.cache.ClearCache()
+	return nil
+}
+
+func (service *entityService) DeleteEntity(id string) error {
+	if err := service.repository.DeleteEntity(id); err != nil {
+		return err
+	}
+
+	service.cache.ClearCache()
+	return nil
+	//service.cache.DeleteEntity(entityForCache)
 }

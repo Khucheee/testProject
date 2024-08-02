@@ -30,7 +30,13 @@ func main() {
 	}()
 
 	//запускаем сервис
-	controller.GetEntityController().Route()
+	entityController, err := controller.GetEntityController()
+	if err != nil {
+		log.Printf("failed to start application: %s", err)
+		return
+	}
+
+	entityController.Route()
 
 	//ждем завершения graceful shutdown
 	wg.Wait()

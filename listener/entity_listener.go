@@ -26,9 +26,11 @@ type entityListener struct {
 	stopSignal bool
 }
 
-func GetEntityListener() EntityListener {
+func GetEntityListener() (EntityListener, error) {
+
+	//если сущность уже существует, возвращаем её
 	if entityListenerInstance != nil {
-		return entityListenerInstance
+		return entityListenerInstance, nil
 	}
 
 	//определяю адрес кафки
@@ -38,18 +40,19 @@ func GetEntityListener() EntityListener {
 	reader := kafka.NewReader(kafka.ReaderConfig{
 		Brokers: []string{kafkaAddress}, // здесь адрес подключения к кафке
 		Topic:   config.KafkaTopic,
-		//GroupID:  "json_consumer_group",
-		//MinBytes: 10e3, // 10KB
-		//MaxBytes: 10e6, // 10MB
 	})
 
 	//инициализируем инсстанс листенера
-	entityRepository := repository.GetEntityRepository()
-	entityListenerInstance := &entityListener{reader, entityRepository, false}
+	entityListenerInstance := &entityListener{reader: reader, stopSignal: false}
+	entityRepository, err := repository.GetEntityRepository()
+	entityListenerInstance.repository = entityRepository
+	if err != nil {
+		return entityListenerInstance, fmt.Errorf("failed to initislize repository in listener: %s", err)
+	}
 
 	//передаем функцию закрытия в клозер для graceful shutdown
 	closer.CloseFunctions = append(closer.CloseFunctions, entityListenerInstance.CloseEntityListener())
-	return entityListenerInstance
+	return entityListenerInstance, nil
 }
 
 func (listener *entityListener) CloseEntityListener() func() {

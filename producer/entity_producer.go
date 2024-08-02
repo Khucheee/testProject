@@ -14,7 +14,7 @@ import (
 var entityProducerInstance *entityProducer
 
 type EntityProducer interface {
-	ProduceEntityToKafka(entity model.Entity)
+	ProduceEntityToKafka(entity model.Entity) error
 	CloseEntityProducer() func()
 }
 
@@ -22,31 +22,36 @@ type entityProducer struct {
 	writer *kafka.Writer
 }
 
-func GetEntityProducer() EntityProducer {
+func GetEntityProducer() (EntityProducer, error) {
+
+	//если сущность уже есть, то возвращаем её
 	if entityProducerInstance != nil {
-		return entityProducerInstance
+		return entityProducerInstance, nil
 	}
 
 	//определяю адрес кафки
 	kafkaAddress := fmt.Sprintf("%s:%s", config.KafkaHost, config.KafkaPort)
 
 	//создаем продюсера для отправки сообщений в kafka
+	//надо подумать как проверить работоспособность райтера
 	writer := kafka.NewWriter(kafka.WriterConfig{
 		Brokers: []string{kafkaAddress}, ///здесь нужно помнить про адрес
 		Topic:   config.KafkaTopic,
 	})
+
 	//инициализируем инстанс продюсера, передаем функцию клозеру для graceful shutdown
 	entityProducerInstance = &entityProducer{writer}
 	closer.CloseFunctions = append(closer.CloseFunctions, entityProducerInstance.CloseEntityProducer())
-	return entityProducerInstance
+	return entityProducerInstance, nil
 }
 
-func (producer *entityProducer) ProduceEntityToKafka(entity model.Entity) {
+func (producer *entityProducer) ProduceEntityToKafka(entity model.Entity) error {
 
 	//парсим полученную структуру в json
 	message, err := json.Marshal(entity)
 	if err != nil {
-		log.Println("failed to marshal JSON while produce into kafka:", err)
+		log.Printf("failed to marshal JSON while produce into kafka: %s", err)
+		return err
 	}
 
 	//отправляем сообщение в топик
@@ -57,8 +62,10 @@ func (producer *entityProducer) ProduceEntityToKafka(entity model.Entity) {
 		},
 	)
 	if err != nil {
-		log.Println("failed to produce message into kafka:", err)
+		log.Printf("failed to produce message into kafka: %s", err)
+		return err
 	}
+	return nil
 }
 
 func (producer *entityProducer) CloseEntityProducer() func() {
@@ -71,18 +78,18 @@ func (producer *entityProducer) CloseEntityProducer() func() {
 	}
 }
 
-func CreateTopic() {
+func CreateTopic() error {
 	kafkaAddress := fmt.Sprintf("%s:%s", config.KafkaHost, config.KafkaPort)
 
 	kafkaConnect, err := kafka.Dial("tcp", kafkaAddress)
 	if err != nil {
-		log.Println("failed to create kafka connection while creating topic:", err)
+		return fmt.Errorf("failed to create kafka connection while creating topic: %s", err)
 	}
 	topicConfig := kafka.TopicConfig{Topic: config.KafkaTopic, NumPartitions: 1, ReplicationFactor: 1}
-	if err := kafkaConnect.CreateTopics(topicConfig); err != nil {
-		log.Println("something going wrong while creating kafka topic:", err)
+	if err = kafkaConnect.CreateTopics(topicConfig); err != nil {
+		return fmt.Errorf("something going wrong while creating kafka topic: %s", err)
 	}
-
+	return nil
 }
 
 /*
