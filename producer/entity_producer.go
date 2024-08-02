@@ -55,9 +55,15 @@ func (producer *entityProducer) ProduceEntityToKafka(entity model.Entity) error 
 	}
 
 	//отправляем сообщение в топик
+	idForKafka, err := entity.Id.MarshalBinary()
+	if err != nil {
+		log.Printf("failed to convert uuid into bytes in producer: %s", err)
+		return err
+	}
+
 	err = producer.writer.WriteMessages(context.Background(),
 		kafka.Message{
-			Key:   []byte(entity.Id),
+			Key:   idForKafka,
 			Value: message,
 		},
 	)
@@ -66,6 +72,7 @@ func (producer *entityProducer) ProduceEntityToKafka(entity model.Entity) error 
 		return err
 	}
 	return nil
+
 }
 
 func (producer *entityProducer) CloseEntityProducer() func() {

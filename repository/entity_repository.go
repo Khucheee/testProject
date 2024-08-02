@@ -5,6 +5,7 @@ import (
 	"customers_kuber/config"
 	"customers_kuber/model"
 	"fmt"
+	"github.com/google/uuid"
 	_ "github.com/lib/pq"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -15,10 +16,10 @@ import (
 var entityRepositoryInstance *entityRepository
 
 type EntityRepository interface {
-	SaveEntity(e model.Entity)
+	SaveEntity(e model.Entity) error
 	GetEntities() ([]model.Entity, error)
 	UpdateEntity(model.Entity) error
-	DeleteEntity(string) error
+	DeleteEntity(uuid2 uuid.UUID) error
 }
 
 type entityRepository struct {
@@ -70,13 +71,14 @@ func (repository *entityRepository) CloseEntityRepository() func() {
 	}
 }
 
-func (repository *entityRepository) SaveEntity(e model.Entity) {
+func (repository *entityRepository) SaveEntity(e model.Entity) error {
 
 	//сохраняю Entity в базу
 	result := repository.db.Create(&e)
 	if result.Error != nil {
-		log.Println(result.Error)
+		return fmt.Errorf("failed to save entity into repository: %s", result.Error)
 	}
+	return nil
 }
 
 func (repository *entityRepository) GetEntities() ([]model.Entity, error) {
@@ -108,10 +110,12 @@ func (repository *entityRepository) UpdateEntity(entity model.Entity) error {
 	return nil
 }
 
-func (repository *entityRepository) DeleteEntity(id string) error {
+func (repository *entityRepository) DeleteEntity(id uuid.UUID) error {
 	entity := model.Entity{}
 	if result := repository.db.Where("Id = ?", id).Delete(&entity); result.Error != nil {
-		return fmt.Errorf("failed to delete data from repository: %s", result.Error)
+		err := fmt.Errorf("failed to delete data from repository: %s", result.Error)
+		log.Println(err)
+		return err
 	}
 	log.Println("deleting from database ended successfully")
 	return nil

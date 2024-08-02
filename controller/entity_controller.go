@@ -78,7 +78,8 @@ func (controller *entityController) SaveEntity(ctx *gin.Context) {
 	test := &model.Test{}
 	if err := ctx.BindJSON(test); err != nil {
 		log.Printf("wrong JSON received in saveEntity: %s", err)
-		ctx.Status(http.StatusBadRequest)
+		ctx.JSON(http.StatusBadRequest, err.Error())
+		return
 	}
 
 	//сохранение данных
@@ -101,7 +102,6 @@ func (controller *entityController) GetAllEntities(ctx *gin.Context) {
 }
 
 func (controller *entityController) UpdateEntity(ctx *gin.Context) {
-
 	//парсю json и передаю сервису, если не получилось распарсить, ошибка
 	entity := &model.Entity{}
 	if err := ctx.BindJSON(entity); err != nil {
@@ -109,19 +109,22 @@ func (controller *entityController) UpdateEntity(ctx *gin.Context) {
 	}
 
 	//проверка на uuid
-	if err := uuid.Validate(ctx.Param("id")); err != nil {
-		ctx.JSON(http.StatusBadRequest, "param is not uuid")
+	uuidFromURL, err := uuid.Parse(ctx.Param("id"))
+	if err != nil {
+		log.Println(err)
+		ctx.JSON(http.StatusBadRequest, "param must be uuid")
+		return
 	}
 
 	//сравниваем id в теле и в урле, если не совпадают, ошибка
-	if entity.Id != ctx.Param("id") {
+	if entity.Id != uuidFromURL {
 		ctx.JSON(http.StatusTeapot, "wrong id")
 		return
 	}
 
 	//обновляем данные
 	test := entity.Test
-	err := controller.service.UpdateEntity(model.Entity{Id: ctx.Param("id"), Test: test})
+	err = controller.service.UpdateEntity(model.Entity{Id: uuidFromURL, Test: test})
 	if err != nil {
 		if err.Error() == "record not found" {
 			ctx.Status(http.StatusNotFound)
@@ -137,7 +140,12 @@ func (controller *entityController) UpdateEntity(ctx *gin.Context) {
 }
 
 func (controller *entityController) DeleteEntity(ctx *gin.Context) {
-	if err := controller.service.DeleteEntity(ctx.Param("id")); err != nil {
+	uuidFromURL, err := uuid.Parse(ctx.Param("id"))
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, "param must be uuid")
+	}
+
+	if err := controller.service.DeleteEntity(uuidFromURL); err != nil {
 		ctx.Status(http.StatusInternalServerError)
 		return
 	}

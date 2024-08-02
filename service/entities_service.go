@@ -17,7 +17,7 @@ type EntityService interface {
 	SaveEntity(model.Test) error
 	GetAllEntities(string) ([]model.Entity, error)
 	UpdateEntity(model.Entity) error
-	DeleteEntity(string) error
+	DeleteEntity(uuid.UUID) error
 }
 
 type entityService struct {
@@ -73,7 +73,7 @@ func (service *entityService) SaveEntity(test model.Test) error {
 	//прокидываем путь для формирования ключа по которому будем обращаться в кэш
 
 	//собираем структуру entity
-	entity := model.Entity{Id: uuid.NewString(), Test: test}
+	entity := model.Entity{Id: uuid.New(), Test: test}
 
 	//отдаем данные продюсеру
 	if err := service.producer.ProduceEntityToKafka(entity); err != nil {
@@ -117,7 +117,7 @@ func (service *entityService) UpdateEntity(entity model.Entity) error {
 	return nil
 }
 
-func (service *entityService) DeleteEntity(id string) error {
+func (service *entityService) DeleteEntity(id uuid.UUID) error {
 	if err := service.repository.DeleteEntity(id); err != nil {
 		return err
 	}

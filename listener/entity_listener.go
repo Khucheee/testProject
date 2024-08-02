@@ -89,6 +89,9 @@ func (listener *entityListener) StartListening() {
 		log.Println("message from kafka received:", entity)
 
 		//сохраняю Entity в базу
-		listener.repository.SaveEntity(entity)
+		err = listener.repository.SaveEntity(entity)
+		if err != nil {
+			log.Printf("failed to save data in listener: %s", err)
+		}
 	}
 }

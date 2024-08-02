@@ -7,8 +7,8 @@ import (
 )
 
 type Test struct {
-	Name string `json:"Name"`
-	Age  int    `json:"Age"`
+	Name string `json:"name" binding:"required"`
+	Age  int    `json:"age" binding:"required,min=0,max=100"`
 }
 
 func (test *Test) Scan(value interface{}) error {

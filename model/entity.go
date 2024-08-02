@@ -1,9 +1,12 @@
 package model
 
-import "gorm.io/gorm"
+import (
+	"github.com/google/uuid"
+	"gorm.io/gorm"
+)
 
 type Entity struct {
-	Id      string         `gorm:"type:uuid;primaryKey"`
-	Test    Test           `gorm:"type:json"`
+	Id      uuid.UUID      `json:"id" gorm:"type:uuid;primaryKey"`
+	Test    Test           `json:"test" gorm:"type:json" binding:"required"`
 	Deleted gorm.DeletedAt `json:"-"`
 }
