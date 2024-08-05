@@ -76,23 +76,27 @@ func (controller *entityController) SaveEntity(ctx *gin.Context) {
 
 	//Парсинг полученной json
 	test := &model.Test{}
+
+	//валидация полей в теле запроса
 	if err := ctx.BindJSON(test); err != nil {
 		log.Printf("wrong JSON received in saveEntity: %s", err)
 		ctx.JSON(http.StatusBadRequest, err.Error())
 		return
 	}
 
-	//сохранение данных
+	//сохранение данных, если сервис вернет ошибку, то 500
 	if err := controller.service.SaveEntity(*test); err != nil {
 		ctx.Status(http.StatusInternalServerError)
 		return
 	}
 
-	//если все ок
+	//если все ок, 200
 	ctx.Status(http.StatusAccepted)
 }
 
 func (controller *entityController) GetAllEntities(ctx *gin.Context) {
+
+	//получение всех существующих entity, если вернется ошибка, то 500
 	entities, err := controller.service.GetAllEntities(ctx.Request.URL.Path)
 	if err != nil {
 		ctx.Status(http.StatusInternalServerError)
@@ -102,7 +106,8 @@ func (controller *entityController) GetAllEntities(ctx *gin.Context) {
 }
 
 func (controller *entityController) UpdateEntity(ctx *gin.Context) {
-	//парсю json и передаю сервису, если не получилось распарсить, ошибка
+
+	//парсю json и передаю сервису, если не прошли валидации, 400
 	entity := &model.EntityForUpdate{}
 	if err := ctx.ShouldBindJSON(entity); err != nil {
 		log.Println("updateEntity:wrong JSON received in controller:", err)
@@ -110,7 +115,7 @@ func (controller *entityController) UpdateEntity(ctx *gin.Context) {
 		return
 	}
 
-	//проверка на uuid
+	//проверка на uuid, если в URL передан не uuid, то 400
 	uuidFromURL, err := uuid.Parse(ctx.Param("id"))
 	if err != nil {
 		log.Println(err)
@@ -118,20 +123,22 @@ func (controller *entityController) UpdateEntity(ctx *gin.Context) {
 		return
 	}
 
-	//сравниваем id в теле и в урле, если не совпадают, ошибка
+	//сравниваем id в теле и в урле, если не совпадают, 400
 	if entity.Id != uuidFromURL {
 		ctx.JSON(http.StatusTeapot, "wrong id")
 		return
 	}
 
 	//обновляем данные
-
+	//если вернется not found, то 404
+	//при любой другой ошибке 500
 	err = controller.service.UpdateEntity(model.Entity{Id: entity.Id, Test: model.Test{Name: entity.Test.Name, Age: entity.Test.Age}})
 	if err != nil {
 		if err.Error() == "record not found" {
 			ctx.Status(http.StatusNotFound)
 			return
 		}
+		log.Println("fai")
 		ctx.Status(http.StatusInternalServerError)
 		return
 	}

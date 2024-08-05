@@ -77,6 +77,7 @@ func (service *entityService) SaveEntity(test model.Test) error {
 
 	//отдаем данные продюсеру
 	if err := service.producer.ProduceEntityToKafka(entity); err != nil {
+		log.Printf("failed to update entity in service: %s", err)
 		return err
 	}
 
@@ -97,6 +98,7 @@ func (service *entityService) GetAllEntities(pathForCache string) ([]model.Entit
 	log.Println("cache is empty")
 	entities, err := service.repository.GetEntities()
 	if err != nil {
+		log.Printf("failed to get entities in service: %s", err)
 		return entities, err
 	}
 
@@ -109,6 +111,7 @@ func (service *entityService) UpdateEntity(entity model.Entity) error {
 
 	//обновляем данные в репозитории
 	if err := service.repository.UpdateEntity(entity); err != nil {
+		log.Printf("failed to update entities in service: %s", err)
 		return err
 	}
 
@@ -119,6 +122,7 @@ func (service *entityService) UpdateEntity(entity model.Entity) error {
 
 func (service *entityService) DeleteEntity(id uuid.UUID) error {
 	if err := service.repository.DeleteEntity(id); err != nil {
+		log.Printf("failed to delete entities in service: %s", err)
 		return err
 	}
 
