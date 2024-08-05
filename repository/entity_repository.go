@@ -18,7 +18,7 @@ var entityRepositoryInstance *entityRepository
 type EntityRepository interface {
 	SaveEntity(e model.Entity) error
 	GetEntities() ([]model.Entity, error)
-	UpdateEntity(model.Entity) error
+	UpdateEntity(update model.Entity) error
 	DeleteEntity(uuid2 uuid.UUID) error
 }
 
@@ -102,7 +102,7 @@ func (repository *entityRepository) UpdateEntity(entity model.Entity) error {
 	}
 
 	//если запись нашлась, то обновляю её
-	if result = repository.db.Where("id=?", entity.Id).Updates(&entity); result.Error != nil {
+	if result = repository.db.Model(&entity).Where("id=?", entity.Id).Updates(map[string]interface{}{"id": entity.Id, "Test": entity.Test}); result.Error != nil {
 		log.Printf("failed to update data in repository: %s", result.Error)
 		return result.Error
 	}

@@ -7,6 +7,6 @@ import (
 
 type Entity struct {
 	Id      uuid.UUID      `json:"id" gorm:"type:uuid;primaryKey"`
-	Test    Test           `json:"test" gorm:"type:json" binding:"required"`
+	Test    Test           `json:"test" gorm:"type:json"`
 	Deleted gorm.DeletedAt `json:"-"`
 }

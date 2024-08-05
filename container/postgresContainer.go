@@ -3,6 +3,7 @@ package container
 import (
 	"context"
 	"customers_kuber/closer"
+	"fmt"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-connections/nat"
 	"github.com/testcontainers/testcontainers-go"
@@ -10,7 +11,7 @@ import (
 	"time"
 )
 
-func RunPostgres() {
+func RunPostgres() error {
 
 	//конфигурация базы данных
 	ctx := context.Background()
@@ -36,7 +37,7 @@ func RunPostgres() {
 		Started:          true,
 	})
 	if err != nil {
-		log.Println("failed to start postgres container:", err)
+		return fmt.Errorf("failed to start postgres container: %s", err)
 	}
 
 	//передача функции в closer для graceful shutdown
@@ -48,4 +49,5 @@ func RunPostgres() {
 		log.Println("postgres container terminated successfully")
 	})
 	time.Sleep(time.Second * 3)
+	return nil
 }

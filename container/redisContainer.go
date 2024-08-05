@@ -3,6 +3,7 @@ package container
 import (
 	"context"
 	"customers_kuber/closer"
+	"fmt"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-connections/nat"
 	"github.com/testcontainers/testcontainers-go"
@@ -10,7 +11,9 @@ import (
 	"time"
 )
 
-func RunRedis() {
+func RunRedis() error {
+
+	//конфигурация редиса, прокидывание портов
 	ctx := context.Background()
 	redisReq := testcontainers.ContainerRequest{
 		Image:        "redis:latest",
@@ -28,7 +31,7 @@ func RunRedis() {
 		Started:          true,
 	})
 	if err != nil {
-		log.Println("failed to start redis container:", err)
+		return fmt.Errorf("failed to start redis container: %s", err)
 	}
 
 	//передача функции в closer для graceful shutdown
@@ -40,4 +43,5 @@ func RunRedis() {
 		log.Println("redis container terminated successfully")
 	})
 	time.Sleep(time.Second * 3)
+	return nil
 }

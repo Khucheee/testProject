@@ -16,9 +16,18 @@ func main() {
 
 	//проверка окружения, если запуск локальный, используем testcontainers
 	if config.Kuber == "" {
-		container.RunRedis()
-		container.RunPostgres()
-		container.RunKafka()
+		if err := container.RunRedis(); err != nil {
+			log.Printf("failed to start application: %s", err)
+			return
+		}
+		if err := container.RunPostgres(); err != nil {
+			log.Printf("failed to start application: %s", err)
+			return
+		}
+		if err := container.RunKafka(); err != nil {
+			log.Printf("failed to start application: %s", err)
+			return
+		}
 	}
 
 	//отлавливаем сигнал ctrl+c для graceful shutdown
@@ -36,6 +45,7 @@ func main() {
 		return
 	}
 
+	//запускаем сервер
 	entityController.Route()
 
 	//ждем завершения graceful shutdown

@@ -3,6 +3,7 @@ package container
 import (
 	"context"
 	"customers_kuber/closer"
+	"fmt"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-connections/nat"
 	"github.com/testcontainers/testcontainers-go"
@@ -11,10 +12,10 @@ import (
 	"time"
 )
 
-func RunKafka() {
-	ctx := context.Background()
+func RunKafka() error {
 
 	//конфигурация кафки
+	ctx := context.Background()
 	kafkaReq := testcontainers.ContainerRequest{
 		Image:        "confluentinc/confluent-local:7.5.0",
 		ExposedPorts: []string{"9092/tcp", "9293/tcp"},
@@ -33,7 +34,7 @@ func RunKafka() {
 		Started:          true,
 	})
 	if err != nil {
-		log.Println("failed to start Kafka container:", err)
+		return fmt.Errorf("failed to start kafka container: %s", err)
 	}
 
 	//передача функции в closer для graceful shutdown
@@ -45,4 +46,5 @@ func RunKafka() {
 		log.Println("kafka container terminated successfully")
 	})
 	time.Sleep(time.Second * 3)
+	return nil
 }

@@ -103,9 +103,11 @@ func (controller *entityController) GetAllEntities(ctx *gin.Context) {
 
 func (controller *entityController) UpdateEntity(ctx *gin.Context) {
 	//парсю json и передаю сервису, если не получилось распарсить, ошибка
-	entity := &model.Entity{}
-	if err := ctx.BindJSON(entity); err != nil {
+	entity := &model.EntityForUpdate{}
+	if err := ctx.ShouldBindJSON(entity); err != nil {
 		log.Println("updateEntity:wrong JSON received in controller:", err)
+		ctx.JSON(http.StatusBadRequest, err.Error())
+		return
 	}
 
 	//проверка на uuid
@@ -123,8 +125,8 @@ func (controller *entityController) UpdateEntity(ctx *gin.Context) {
 	}
 
 	//обновляем данные
-	test := entity.Test
-	err = controller.service.UpdateEntity(model.Entity{Id: uuidFromURL, Test: test})
+
+	err = controller.service.UpdateEntity(model.Entity{Id: entity.Id, Test: model.Test{Name: entity.Test.Name, Age: entity.Test.Age}})
 	if err != nil {
 		if err.Error() == "record not found" {
 			ctx.Status(http.StatusNotFound)

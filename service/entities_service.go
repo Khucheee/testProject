@@ -16,7 +16,7 @@ var entityServiceInstance *entityService
 type EntityService interface {
 	SaveEntity(model.Test) error
 	GetAllEntities(string) ([]model.Entity, error)
-	UpdateEntity(model.Entity) error
+	UpdateEntity(update model.Entity) error
 	DeleteEntity(uuid.UUID) error
 }
 

@@ -15,6 +15,8 @@ var RedisHost string
 var RedisPort string
 var RedisPassword string
 
+//если приложение поднято в кубере, то будут использоваться переменные окружения из configmap и secrets
+
 func SetConfig() {
 	Kuber = os.Getenv("kuber")
 
