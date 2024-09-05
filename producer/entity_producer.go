@@ -98,37 +98,3 @@ func CreateTopic() error {
 	}
 	return nil
 }
-
-/*
-func CreateTopic(topic string, numPartitions int32, replicationFactor int16) error {
-
-	//создаем админа кластера
-	time.Sleep(time.Second * 10)
-	admin, err := sarama.NewClusterAdmin([]string{"localhost:9092"}, nil)
-	if err != nil {
-		log.Println("failed to create cluster admin to create topic in kafka:", err)
-	}
-
-	//после создания топика закрываем админа
-	defer func() {
-		if err := admin.Close(); err != nil {
-			log.Println("Failed to close admin object after creating topic in kafka:", err)
-		}
-	}()
-
-	//Собираем структуру, чтобы скормить её в функцию создания топика
-	topicDetail := sarama.TopicDetail{
-		NumPartitions:     numPartitions,
-		ReplicationFactor: replicationFactor,
-	}
-
-	//создаем топик
-
-	err = admin.CreateTopic(topic, &topicDetail, false)
-	if err != nil && err != sarama.ErrTopicAlreadyExists {
-		log.Println("Failed to create topic in kafka:", err)
-		return err
-	}
-	return nil
-}
-*/

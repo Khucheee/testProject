@@ -24,23 +24,23 @@ type entityController struct {
 	server  *http.Server //храню сервер для graceful shutdown
 }
 
-func GetEntityController() (EntityController, error) {
+func GetEntityController() EntityController {
 
 	//ессли сущность уже есть, возвращаем её
 	if entityControllerInstance != nil {
-		return entityControllerInstance, nil
+		return entityControllerInstance
 	}
 
 	//получаем сервис
 	entityService, err := service.GetEntityService()
 	entityControllerInstance = &entityController{service: entityService}
 	if err != nil {
-		return entityControllerInstance, err
+		log.Fatalf("Failed to create controller: %s", err)
 	}
 
 	//передаю функцию остановки для graceful shutdown
 	closer.CloseFunctions = append(closer.CloseFunctions, entityControllerInstance.CloseController())
-	return entityControllerInstance, nil
+	return entityControllerInstance
 }
 
 func (controller *entityController) CloseController() func() {

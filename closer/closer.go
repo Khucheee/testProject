@@ -4,10 +4,21 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 )
 
 var CloseFunctions []func()
+
+func InitGracefulShutdown() *sync.WaitGroup {
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		CtrlC()
+		wg.Done()
+	}()
+	return &wg
+}
 
 func CtrlC() {
 	sigChan := make(chan os.Signal, 1)

@@ -10,8 +10,8 @@ import (
 //но так показалось красивее
 
 type TestForUpdate struct {
-	Name string `json:"name"`
-	Age  int    `json:"age" binding:"min=0,max=100"`
+	Name *string `json:"name"`
+	Age  *int    `json:"age" binding:"min=0,max=100"`
 }
 
 func (test *TestForUpdate) Scan(value interface{}) error {

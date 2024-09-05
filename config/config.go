@@ -6,6 +6,7 @@ var Kuber string
 var KafkaHost string
 var KafkaPort string
 var KafkaTopic string
+var KafkaLogTopic string
 var PostgresHost string
 var PostgresPort string
 var PostgresDatabaseName string
@@ -14,6 +15,12 @@ var PostgresUser string     //храним в секрете
 var RedisHost string
 var RedisPort string
 var RedisPassword string
+var LogstashPort string
+var LogstashHost string
+var ElasticsearchPort string
+var ElasticsearchHost string
+var KibanaHost string
+var KibanaPort string
 
 //если приложение поднято в кубере, то будут использоваться переменные окружения из configmap и secrets
 
@@ -29,18 +36,38 @@ func SetConfig() {
 	if KafkaTopic = os.Getenv("kafkaTopic"); KafkaTopic == "" {
 		KafkaTopic = "json_topic"
 	}
+	if KafkaLogTopic = os.Getenv("kafkaLogTopic"); KafkaLogTopic == "" {
+		KafkaLogTopic = "log_topic"
+	}
 	if PostgresHost = os.Getenv("postgresHost"); PostgresHost == "" {
 		PostgresHost = "localhost"
 	}
 	if PostgresPort = os.Getenv("postgresPort"); PostgresPort == "" {
 		PostgresPort = "5432"
 	}
-
 	if RedisHost = os.Getenv("redisHost"); RedisHost == "" {
 		RedisHost = "localhost"
 	}
 	if RedisPort = os.Getenv("redisPort"); RedisPort == "" {
 		RedisPort = "6379"
+	}
+	if LogstashHost = os.Getenv("logstashHost"); LogstashHost == "" {
+		LogstashHost = "logstash"
+	}
+	if LogstashPort = os.Getenv("logstashPort"); LogstashPort == "" {
+		LogstashPort = "5044"
+	}
+	if ElasticsearchHost = os.Getenv("elasticsearchHost"); ElasticsearchHost == "" {
+		ElasticsearchHost = "elasticsearch"
+	}
+	if ElasticsearchPort = os.Getenv("elasticsearchPort"); ElasticsearchPort == "" {
+		ElasticsearchPort = "9200"
+	}
+	if KibanaHost = os.Getenv("kibanaHost"); KibanaHost == "" {
+		KibanaHost = "localhost"
+	}
+	if KibanaPort = os.Getenv("kibanaPort"); KibanaPort == "" {
+		KibanaPort = "5601"
 	}
 
 	//в случае с локальным запуском пароль и логин от базы можно забирать с помощью флагов командной строки

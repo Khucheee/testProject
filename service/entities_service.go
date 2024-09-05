@@ -80,9 +80,6 @@ func (service *entityService) SaveEntity(test model.Test) error {
 		log.Printf("failed to update entity in service: %s", err)
 		return err
 	}
-
-	//удаляем кэш
-	service.cache.ClearCache()
 	return nil
 }
 

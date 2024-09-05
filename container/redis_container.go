@@ -16,6 +16,7 @@ func RunRedis() error {
 	//конфигурация редиса, прокидывание портов
 	ctx := context.Background()
 	redisReq := testcontainers.ContainerRequest{
+		Name:         "redis",
 		Image:        "redis:latest",
 		ExposedPorts: []string{"6379/tcp", "6379/tcp"},
 		HostConfigModifier: func(hostConfig *container.HostConfig) {

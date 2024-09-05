@@ -16,6 +16,7 @@ func RunPostgres() error {
 	//конфигурация базы данных
 	ctx := context.Background()
 	postgreSQLReq := testcontainers.ContainerRequest{
+		Name:         "postgres",
 		Image:        "postgres:latest",
 		ExposedPorts: []string{"5432/tcp", "5435/tcp"},
 		Env: map[string]string{
