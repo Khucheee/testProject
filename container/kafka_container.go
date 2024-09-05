@@ -18,7 +18,7 @@ func RunKafka() error {
 	ctx := context.Background()
 	kafkaReq := testcontainers.ContainerRequest{
 		Image:        "confluentinc/confluent-local:7.5.0",
-		ExposedPorts: []string{"9092/tcp", "9293/tcp"},
+		ExposedPorts: []string{"9092/tcp"},
 		HostConfigModifier: func(hostConfig *container.HostConfig) {
 			hostConfig.PortBindings = nat.PortMap{
 				"9092/tcp": []nat.PortBinding{
@@ -40,7 +40,7 @@ func RunKafka() error {
 	//передача функции в closer для graceful shutdown
 	closer.CloseFunctions = append(closer.CloseFunctions, func() {
 		if err = kafkaContainer.Terminate(ctx); err != nil {
-			log.Println("failed to terminate postgres container:", err)
+			log.Println("failed to terminate kafka container:", err)
 			return
 		}
 		log.Println("kafka container terminated successfully")

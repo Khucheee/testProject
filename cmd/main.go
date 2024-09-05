@@ -28,8 +28,13 @@ func main() {
 			log.Printf("failed to start application: %s", err)
 			return
 		}
+		if err := container.RunLogstash(); err != nil {
+			log.Printf("failed to start application: %s", err)
+			return
+		}
 	}
 
+	//logger.InitLogging()
 	//отлавливаем сигнал ctrl+c для graceful shutdown
 	var wg sync.WaitGroup
 	wg.Add(1)
