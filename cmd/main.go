@@ -28,7 +28,15 @@ func main() {
 			log.Printf("failed to start application: %s", err)
 			return
 		}
+		if err := container.RunElastic(); err != nil {
+			log.Printf("failed to start application: %s", err)
+			return
+		}
 		if err := container.RunLogstash(); err != nil {
+			log.Printf("failed to start application: %s", err)
+			return
+		}
+		if err := container.RunKibana(); err != nil {
 			log.Printf("failed to start application: %s", err)
 			return
 		}
