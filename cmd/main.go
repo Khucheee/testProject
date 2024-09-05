@@ -5,63 +5,21 @@ import (
 	"customers_kuber/config"
 	"customers_kuber/container"
 	"customers_kuber/controller"
-	"log"
-	"sync"
+	"customers_kuber/logger"
 )
 
 func main() {
 
-	//установка конфига
+	wg := closer.InitGracefulShutdown()
+
 	config.SetConfig()
 
-	//проверка окружения, если запуск локальный, используем testcontainers
-	if config.Kuber == "" {
-		if err := container.RunRedis(); err != nil {
-			log.Printf("failed to start application: %s", err)
-			return
-		}
-		if err := container.RunPostgres(); err != nil {
-			log.Printf("failed to start application: %s", err)
-			return
-		}
-		if err := container.RunKafka(); err != nil {
-			log.Printf("failed to start application: %s", err)
-			return
-		}
-		if err := container.RunElastic(); err != nil {
-			log.Printf("failed to start application: %s", err)
-			return
-		}
-		if err := container.RunLogstash(); err != nil {
-			log.Printf("failed to start application: %s", err)
-			return
-		}
-		if err := container.RunKibana(); err != nil {
-			log.Printf("failed to start application: %s", err)
-			return
-		}
-	}
+	container.CreateContainers()
 
-	//logger.InitLogging()
-	//отлавливаем сигнал ctrl+c для graceful shutdown
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		closer.CtrlC()
-		wg.Done()
-	}()
+	logger.InitLogging()
 
-	//запускаем сервис
-	entityController, err := controller.GetEntityController()
-	if err != nil {
-		log.Printf("failed to start application: %s", err)
-		return
-	}
+	controller.GetEntityController().Route()
 
-	//запускаем сервер
-	entityController.Route()
-
-	//ждем завершения graceful shutdown
 	wg.Wait()
-	log.Println("Выходим из программы")
+
 }
