@@ -4,17 +4,12 @@ import (
 	"context"
 	"customers_kuber/closer"
 	"customers_kuber/config"
-	"encoding/json"
 	"fmt"
 	"github.com/segmentio/kafka-go"
 	"log"
 )
 
 var logProducerInstance *logProducer
-
-type defaultLog struct {
-	Log string
-}
 
 func CreateLogTopic() error {
 	kafkaAddress := fmt.Sprintf("%s:%s", config.KafkaHost, config.KafkaPort)
@@ -31,7 +26,7 @@ func CreateLogTopic() error {
 }
 
 type LogProducer interface {
-	ProduceLogToKafka(log string)
+	ProduceLogToKafka(log []byte)
 	CloseLogProducer() func()
 }
 
@@ -49,8 +44,6 @@ func GetLogProducer() (LogProducer, error) {
 	kafkaAddress := fmt.Sprintf("%s:%s", config.KafkaHost, config.KafkaPort)
 
 	//создаем продюсера для отправки сообщений в kafka
-	//надо подумать как проверить работоспособность райтера
-
 	writer := kafka.NewWriter(kafka.WriterConfig{
 		Brokers: []string{kafkaAddress}, ///здесь нужно помнить про адрес
 		Topic:   config.KafkaLogTopic,
@@ -62,15 +55,8 @@ func GetLogProducer() (LogProducer, error) {
 	return logProducerInstance, nil
 }
 
-func (producer *logProducer) ProduceLogToKafka(logs string) {
-
-	message, err := json.Marshal(defaultLog{logs})
-	if err != nil {
-		log.Printf("failed to marshal JSON while produce into kafka: %s", err)
-		return
-	}
-	_ = producer.writer.WriteMessages(context.Background(), kafka.Message{Value: message})
-
+func (producer *logProducer) ProduceLogToKafka(logs []byte) {
+	_ = producer.writer.WriteMessages(context.Background(), kafka.Message{Value: logs})
 }
 
 func (producer *logProducer) CloseLogProducer() func() {

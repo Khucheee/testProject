@@ -82,7 +82,7 @@ func (listener *entityListener) StartListening() {
 		}
 		time.Sleep(time.Second * 1)
 		msg, err := listener.reader.ReadMessage(context.Background())
-		if err != nil && err.Error() != "failed to read message: fetching message: EOF" {
+		if err != nil && err.Error() != "fetching message: EOF" {
 			log.Println("failed to read message:", err)
 			continue
 		}

@@ -5,6 +5,10 @@ import (
 	"log"
 )
 
+//На счет логирования
+//Филосовия slog говорит, что логирование не должно завершать программу
+//Поэтому в slog нет функции, аналогичной Fatal(), пока решил оставить так
+
 func CreateContainers() {
 	if config.Kuber == "" {
 		if err := RunRedis(); err != nil {

@@ -7,6 +7,10 @@ import (
 	"os"
 )
 
+type logWriter struct {
+	value []byte
+}
+
 type HandlerMiddleware struct {
 	next             slog.Handler
 	kafkaLogProducer LogProducer
@@ -28,14 +32,21 @@ func NewHandlerMiddleware(next slog.Handler) *HandlerMiddleware {
 	return &HandlerMiddleware{next: next, kafkaLogProducer: kafkaLogProducer}
 }
 
+func (writer *logWriter) Write(p []byte) (n int, err error) {
+	writer.value = p
+	return os.Stdout.Write(p)
+}
+
 func (handler *HandlerMiddleware) Enabled(ctx context.Context, rec slog.Level) bool {
 	return handler.next.Enabled(ctx, rec)
 }
 
 func (handler *HandlerMiddleware) Handle(ctx context.Context, rec slog.Record) error {
-	//сдесь буду вызывать метод отправки сообщения в кафку
-	handler.kafkaLogProducer.ProduceLogToKafka(rec.Message)
-	return handler.next.Handle(ctx, rec)
+	writerForHandler := &logWriter{}
+	defaultHandler := slog.NewJSONHandler(writerForHandler, nil)
+	err := defaultHandler.Handle(ctx, rec)
+	handler.kafkaLogProducer.ProduceLogToKafka(writerForHandler.value)
+	return err
 }
 
 func (handler *HandlerMiddleware) WithAttrs(attrs []slog.Attr) slog.Handler {

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"log"
+	"log/slog"
 )
 
 var entityServiceInstance *entityService
@@ -28,12 +29,10 @@ type entityService struct {
 
 func GetEntityService() (EntityService, error) {
 
-	//если сущность уже создана, то возвращаем её
 	if entityServiceInstance != nil {
 		return entityServiceInstance, nil
 	}
 
-	//создаем топик в кафке
 	if err := producer.CreateTopic(); err != nil {
 		return entityServiceInstance, fmt.Errorf("failed to create service: %s", err)
 	}
@@ -52,8 +51,8 @@ func GetEntityService() (EntityService, error) {
 	if err != nil {
 		return entityServiceInstance, fmt.Errorf("failed to create service: %s", err)
 	}
+
 	//полчаем продюсера
-	//тут внутри нужно допилить обработку ошибок
 	entityProducer, err := producer.GetEntityProducer()
 	if err != nil {
 		return entityServiceInstance, fmt.Errorf("failed to create service: %s", err)
@@ -62,7 +61,7 @@ func GetEntityService() (EntityService, error) {
 	//получаем доступ к кэшу
 	entityCache, err := cache.GetEntityCache()
 	if err != nil {
-		log.Println(err)
+		slog.Warn("failed to get cache in service")
 	}
 
 	entityServiceInstance = &entityService{entityRepository, entityProducer, entityCache}
@@ -70,22 +69,22 @@ func GetEntityService() (EntityService, error) {
 }
 
 func (service *entityService) SaveEntity(test model.Test) error {
-	//прокидываем путь для формирования ключа по которому будем обращаться в кэш
 
 	//собираем структуру entity
 	entity := model.Entity{Id: uuid.New(), Test: test}
 
 	//отдаем данные продюсеру
 	if err := service.producer.ProduceEntityToKafka(entity); err != nil {
-		log.Printf("failed to update entity in service: %s", err)
-		return err
+		return fmt.Errorf("failed to uptdate entity in service: %s", err)
 	}
 	return nil
 }
 
 func (service *entityService) GetAllEntities(pathForCache string) ([]model.Entity, error) {
+
 	//прокидываем путь для формирования ключа по которому будем обращаться в кэш
 	service.cache.SetPath(pathForCache)
+
 	//обращаемся к кэшу
 	if entities := service.cache.GetCache(); entities != nil {
 		return entities, nil
