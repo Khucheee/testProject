@@ -59,6 +59,7 @@ func (controller *entityController) Route() {
 
 	//роутинг
 	router := gin.Default()
+	router.Use(withLogging())
 	router.GET("/getAll", controller.GetAllEntities)
 	router.POST("/create", controller.SaveEntity)
 	router.PUT("/:id", controller.UpdateEntity)
@@ -85,7 +86,7 @@ func (controller *entityController) SaveEntity(ctx *gin.Context) {
 	}
 
 	//сохранение данных, если сервис вернет ошибку, то 500
-	if err := controller.service.SaveEntity(*test); err != nil {
+	if err := controller.service.SaveEntity(ctx, *test); err != nil {
 		ctx.Status(http.StatusInternalServerError)
 		return
 	}
@@ -97,7 +98,7 @@ func (controller *entityController) SaveEntity(ctx *gin.Context) {
 func (controller *entityController) GetAllEntities(ctx *gin.Context) {
 
 	//получение всех существующих entity, если вернется ошибка, то 500
-	entities, err := controller.service.GetAllEntities(ctx.Request.URL.Path)
+	entities, err := controller.service.GetAllEntities(ctx, ctx.Request.URL.Path)
 	if err != nil {
 		ctx.Status(http.StatusInternalServerError)
 		return
@@ -132,7 +133,7 @@ func (controller *entityController) UpdateEntity(ctx *gin.Context) {
 	//обновляем данные
 	//если вернется not found, то 404
 	//при любой другой ошибке 500
-	err = controller.service.UpdateEntity(model.Entity{Id: entity.Id, Test: model.Test{Name: entity.Test.Name, Age: entity.Test.Age}})
+	err = controller.service.UpdateEntity(ctx, model.Entity{Id: entity.Id, Test: model.Test{Name: entity.Test.Name, Age: entity.Test.Age}})
 	if err != nil {
 		if err.Error() == "record not found" {
 			ctx.Status(http.StatusNotFound)
@@ -142,7 +143,6 @@ func (controller *entityController) UpdateEntity(ctx *gin.Context) {
 		ctx.Status(http.StatusInternalServerError)
 		return
 	}
-
 	//если дошли до сюда, значит все обновилось, отправляем 200
 	ctx.Status(http.StatusOK)
 
@@ -154,7 +154,7 @@ func (controller *entityController) DeleteEntity(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, "param must be uuid")
 	}
 
-	if err := controller.service.DeleteEntity(uuidFromURL); err != nil {
+	if err := controller.service.DeleteEntity(ctx, uuidFromURL); err != nil {
 		ctx.Status(http.StatusInternalServerError)
 		return
 	}

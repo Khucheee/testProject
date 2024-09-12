@@ -7,6 +7,9 @@ import (
 	"os"
 )
 
+type LogCtx struct {
+}
+
 type logWriter struct {
 	value []byte
 }
@@ -14,22 +17,24 @@ type logWriter struct {
 type HandlerMiddleware struct {
 	next             slog.Handler
 	kafkaLogProducer LogProducer
+	handlerOptions   *slog.HandlerOptions
 }
 
 func InitLogging() {
 	if err := CreateLogTopic(); err != nil {
 		log.Printf("Failed init kafka logging: %s", err)
 	}
-	handler := slog.NewJSONHandler(os.Stdout, nil)
-	slog.SetDefault(slog.New(NewHandlerMiddleware(handler)))
+	handlerOptions := &slog.HandlerOptions{AddSource: true}
+	handler := slog.NewJSONHandler(os.Stdout, handlerOptions)
+	slog.SetDefault(slog.New(NewHandlerMiddleware(handler, handlerOptions)))
 }
 
-func NewHandlerMiddleware(next slog.Handler) *HandlerMiddleware {
+func NewHandlerMiddleware(next slog.Handler, handlerOptions *slog.HandlerOptions) *HandlerMiddleware {
 	kafkaLogProducer, err := GetLogProducer()
 	if err != nil {
 		log.Printf("failed to get kafka log producer in log handler: %s", err)
 	}
-	return &HandlerMiddleware{next: next, kafkaLogProducer: kafkaLogProducer}
+	return &HandlerMiddleware{next: next, kafkaLogProducer: kafkaLogProducer, handlerOptions: handlerOptions}
 }
 
 func (writer *logWriter) Write(p []byte) (n int, err error) {
@@ -43,7 +48,7 @@ func (handler *HandlerMiddleware) Enabled(ctx context.Context, rec slog.Level) b
 
 func (handler *HandlerMiddleware) Handle(ctx context.Context, rec slog.Record) error {
 	writerForHandler := &logWriter{}
-	defaultHandler := slog.NewJSONHandler(writerForHandler, nil)
+	defaultHandler := slog.NewJSONHandler(writerForHandler, handler.handlerOptions)
 	err := defaultHandler.Handle(ctx, rec)
 	handler.kafkaLogProducer.ProduceLogToKafka(writerForHandler.value)
 	return err
@@ -54,5 +59,8 @@ func (handler *HandlerMiddleware) WithAttrs(attrs []slog.Attr) slog.Handler {
 }
 
 func (handler *HandlerMiddleware) WithGroup(name string) slog.Handler {
-	return &HandlerMiddleware{handler.next.WithGroup(name), handler.kafkaLogProducer}
+	return &HandlerMiddleware{
+		next:             handler.next.WithGroup(name),
+		kafkaLogProducer: handler.kafkaLogProducer,
+		handlerOptions:   handler.handlerOptions}
 }

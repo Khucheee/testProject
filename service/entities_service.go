@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"customers_kuber/cache"
 	"customers_kuber/listener"
 	"customers_kuber/model"
@@ -15,10 +16,10 @@ import (
 var entityServiceInstance *entityService
 
 type EntityService interface {
-	SaveEntity(model.Test) error
-	GetAllEntities(string) ([]model.Entity, error)
-	UpdateEntity(update model.Entity) error
-	DeleteEntity(uuid.UUID) error
+	SaveEntity(context.Context, model.Test) error
+	GetAllEntities(context.Context, string) ([]model.Entity, error)
+	UpdateEntity(context.Context, model.Entity) error
+	DeleteEntity(context.Context, uuid.UUID) error
 }
 
 type entityService struct {
@@ -68,7 +69,7 @@ func GetEntityService() (EntityService, error) {
 	return entityServiceInstance, nil
 }
 
-func (service *entityService) SaveEntity(test model.Test) error {
+func (service *entityService) SaveEntity(ctx context.Context, test model.Test) error {
 
 	//собираем структуру entity
 	entity := model.Entity{Id: uuid.New(), Test: test}
@@ -80,13 +81,14 @@ func (service *entityService) SaveEntity(test model.Test) error {
 	return nil
 }
 
-func (service *entityService) GetAllEntities(pathForCache string) ([]model.Entity, error) {
+func (service *entityService) GetAllEntities(ctx context.Context, pathForCache string) ([]model.Entity, error) {
 
 	//прокидываем путь для формирования ключа по которому будем обращаться в кэш
 	service.cache.SetPath(pathForCache)
 
 	//обращаемся к кэшу
 	if entities := service.cache.GetCache(); entities != nil {
+		slog.Info("getting data from cache!", "data", entities)
 		return entities, nil
 	}
 
@@ -103,7 +105,7 @@ func (service *entityService) GetAllEntities(pathForCache string) ([]model.Entit
 	return entities, nil
 }
 
-func (service *entityService) UpdateEntity(entity model.Entity) error {
+func (service *entityService) UpdateEntity(ctx context.Context, entity model.Entity) error {
 
 	//обновляем данные в репозитории
 	if err := service.repository.UpdateEntity(entity); err != nil {
@@ -116,7 +118,7 @@ func (service *entityService) UpdateEntity(entity model.Entity) error {
 	return nil
 }
 
-func (service *entityService) DeleteEntity(id uuid.UUID) error {
+func (service *entityService) DeleteEntity(ctx context.Context, id uuid.UUID) error {
 	if err := service.repository.DeleteEntity(id); err != nil {
 		log.Printf("failed to delete entities in service: %s", err)
 		return err
