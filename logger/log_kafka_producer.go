@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"github.com/segmentio/kafka-go"
 	"log"
+	"sync"
 )
 
 var logProducerInstance *logProducer
+var mu sync.Mutex
 
 func CreateLogTopic() error {
 	kafkaAddress := fmt.Sprintf("%s:%s", config.KafkaHost, config.KafkaPort)
@@ -56,6 +58,9 @@ func GetLogProducer() (LogProducer, error) {
 }
 
 func (producer *logProducer) ProduceLogToKafka(logs []byte) {
+	//передаю значение в канал воркера
+	mu.Lock()
+	defer mu.Unlock()
 	_ = producer.writer.WriteMessages(context.Background(), kafka.Message{Value: logs})
 }
 

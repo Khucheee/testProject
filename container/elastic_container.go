@@ -3,17 +3,19 @@ package container
 import (
 	"context"
 	"customers_kuber/closer"
+	"customers_kuber/logger"
 	"fmt"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-connections/nat"
 	"github.com/testcontainers/testcontainers-go"
-	"log"
+	"log/slog"
 	"time"
 )
 
 func RunElastic() error {
 
 	ctx := context.Background()
+
 	elasticReq := testcontainers.ContainerRequest{
 		Name:         "elasticsearch",
 		Image:        "elasticsearch:8.15.0",
@@ -26,8 +28,11 @@ func RunElastic() error {
 			hostConfig.NetworkMode = "NET"
 			hostConfig.PortBindings = nat.PortMap{
 				"9200/tcp": []nat.PortBinding{
-					{HostIP: "0.0.0.0", HostPort: "9200"},
-				}}
+					{
+						HostIP:   "0.0.0.0",
+						HostPort: "9200"},
+				},
+			}
 		},
 	}
 
@@ -43,10 +48,11 @@ func RunElastic() error {
 	//передача функции в closer для graceful shutdown
 	closer.CloseFunctions = append(closer.CloseFunctions, func() {
 		if err = elasticContainer.Terminate(ctx); err != nil {
-			log.Println("failed to terminate elastic container:", err)
+			ctx = logger.WithLogError(ctx, err)
+			slog.ErrorContext(ctx, "failed to terminate elastic container:", err)
 			return
 		}
-		log.Println("elastic container terminated successfully")
+		slog.Info("elastic container terminated successfully")
 	})
 	time.Sleep(time.Second * 3)
 	return nil

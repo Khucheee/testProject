@@ -3,91 +3,96 @@ package controller
 import (
 	"context"
 	"customers_kuber/closer"
+	"customers_kuber/logger"
 	"customers_kuber/model"
 	"customers_kuber/service"
 	"errors"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"log"
+	"log/slog"
 	"net/http"
+	"os"
 )
 
 var entityControllerInstance *entityController
 
 type EntityController interface {
-	Route()
-	CloseController() func()
+	Route(context.Context)
 }
 
+// entityController принимает входящие http запросы и передает их в service,
+// в зависимости от ответа сервсиса генерирует и отправляет ответ на запрос
 type entityController struct {
 	service service.EntityService
 	server  *http.Server //храню сервер для graceful shutdown
 }
 
+// GetEntityController возвращает контроллер, обрабатывающий http запросы,
+// если в сервисе возникла ошибка, она будет возвращаеться в теле ответа,
+// реализовано через синглтон
 func GetEntityController() EntityController {
-
-	//ессли сущность уже есть, возвращаем её
 	if entityControllerInstance != nil {
 		return entityControllerInstance
 	}
-
-	//получаем сервис
+	ctx := context.Background()
 	entityService, err := service.GetEntityService()
 	entityControllerInstance = &entityController{service: entityService}
 	if err != nil {
-		log.Fatalf("Failed to create controller: %s", err)
+		ctx = logger.WithLogError(ctx, err)
+		slog.ErrorContext(ctx, "failed to create controller")
+		os.Exit(1)
 	}
-
-	//передаю функцию остановки для graceful shutdown
-	closer.CloseFunctions = append(closer.CloseFunctions, entityControllerInstance.CloseController())
+	closer.CloseFunctions = append(closer.CloseFunctions, func() {
+		go func() {
+			if err := entityControllerInstance.server.Shutdown(ctx); err != nil {
+				ctx = logger.WithLogError(ctx, err)
+				slog.ErrorContext(ctx, "failed to shut server down")
+			}
+		}()
+		slog.Info("entityController closed successfully")
+	})
 	return entityControllerInstance
 }
 
-func (controller *entityController) CloseController() func() {
-	return func() {
-		ctx := context.Background()
-		go func() {
-			if err := controller.server.Shutdown(ctx); err != nil {
-				log.Println("failed to shut server down")
-			}
-		}()
-		log.Println("entityController closed successfully")
-	}
-}
-
-func (controller *entityController) Route() {
-
-	//роутинг
-	router := gin.Default()
-	router.Use(withLogging())
-	router.GET("/getAll", controller.GetAllEntities)
-	router.POST("/create", controller.SaveEntity)
-	router.PUT("/:id", controller.UpdateEntity)
-	router.DELETE("/:id", controller.DeleteEntity)
+// Route запускает сервер и маршрутизирует запросы
+func (controller *entityController) Route(ctx context.Context) {
+	router := gin.New()
+	router.Use(gin.Recovery())
+	router.Use(Logging())
+	router.GET("/getAll", controller.getAllEntities)
+	router.POST("/create", controller.saveEntity)
+	router.PUT("/:id", controller.updateEntity)
+	router.DELETE("/:id", controller.deleteEntity)
 
 	//Запускаем сервер
+	//todo конфигурировать порт моего сервера
 	server := &http.Server{Addr: ":8080", Handler: router}
 	controller.server = server
 	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		log.Printf("server down: %s", err)
+		ctx = logger.WithLogError(ctx, err)
+		slog.ErrorContext(ctx, "failed to start server")
+		os.Exit(1)
 	}
 }
 
-func (controller *entityController) SaveEntity(ctx *gin.Context) {
+// saveEntity отвечает за сохранение новых model.Entity
+// для успешного создания необходимо передать все поля структуры
+// 0 <= age <= 100
+func (controller *entityController) saveEntity(ctx *gin.Context) {
 
-	//Парсинг полученной json
+	slog.Info("saveEntity in controller started")
+
+	//Парсинг полученной json и валидация полей
 	test := &model.Test{}
-
-	//валидация полей в теле запроса
 	if err := ctx.BindJSON(test); err != nil {
-		log.Printf("wrong JSON received in saveEntity: %s", err)
 		ctx.JSON(http.StatusBadRequest, err.Error())
 		return
 	}
 
 	//сохранение данных, если сервис вернет ошибку, то 500
 	if err := controller.service.SaveEntity(ctx, *test); err != nil {
-		ctx.Status(http.StatusInternalServerError)
+		slog.ErrorContext(logger.WithLogError(ctx, err), "failed to save entity")
+		ctx.JSON(http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -95,68 +100,82 @@ func (controller *entityController) SaveEntity(ctx *gin.Context) {
 	ctx.Status(http.StatusAccepted)
 }
 
-func (controller *entityController) GetAllEntities(ctx *gin.Context) {
+// getAllEntities возвращает все ранее сохраненные в приложении model.Entity
+func (controller *entityController) getAllEntities(ctx *gin.Context) {
+
+	slog.Info("getAllEntities in controller started")
 
 	//получение всех существующих entity, если вернется ошибка, то 500
 	entities, err := controller.service.GetAllEntities(ctx, ctx.Request.URL.Path)
 	if err != nil {
-		ctx.Status(http.StatusInternalServerError)
+		slog.ErrorContext(logger.WithLogError(ctx, err), "failed to get all entities")
+		ctx.JSON(http.StatusInternalServerError, err.Error())
 		return
 	}
 	ctx.JSON(http.StatusOK, entities)
 }
 
-func (controller *entityController) UpdateEntity(ctx *gin.Context) {
+// updateEntity обновляет ранее сохраненный model.Entity
+// для успешного обновления id в url и id в body запроса должны быть типа UUID и совпадать
+// 0 <= age <= 100
+func (controller *entityController) updateEntity(ctx *gin.Context) {
 
-	//парсю json и передаю сервису, если не прошли валидации, 400
-	entity := &model.EntityForUpdate{}
-	if err := ctx.ShouldBindJSON(entity); err != nil {
-		log.Println("updateEntity:wrong JSON received in controller:", err)
-		ctx.JSON(http.StatusBadRequest, err.Error())
-		return
-	}
+	slog.Info("updateEntity in controller started")
 
 	//проверка на uuid, если в URL передан не uuid, то 400
 	uuidFromURL, err := uuid.Parse(ctx.Param("id"))
 	if err != nil {
-		log.Println(err)
-		ctx.JSON(http.StatusBadRequest, "param must be uuid")
+		ctx.JSON(http.StatusBadRequest, err.Error())
+		return
+	}
+
+	//парсю json и передаю сервису, если не прошли валидации полей, 400
+	entity := &model.EntityForUpdate{}
+	if err := ctx.ShouldBindJSON(entity); err != nil {
+		ctx.JSON(http.StatusBadRequest, err.Error())
 		return
 	}
 
 	//сравниваем id в теле и в урле, если не совпадают, 400
 	if entity.Id != uuidFromURL {
-		ctx.JSON(http.StatusTeapot, "wrong id")
+		ctx.JSON(http.StatusTeapot, "ID in url and ID in body doesn't match!")
 		return
 	}
 
-	//обновляем данные
-	//если вернется not found, то 404
-	//при любой другой ошибке 500
+	//обновляем данные, если ошибка, то 500
 	err = controller.service.UpdateEntity(ctx, model.Entity{Id: entity.Id, Test: model.Test{Name: entity.Test.Name, Age: entity.Test.Age}})
 	if err != nil {
 		if err.Error() == "record not found" {
 			ctx.Status(http.StatusNotFound)
 			return
 		}
-		log.Println("fai")
-		ctx.Status(http.StatusInternalServerError)
+		slog.ErrorContext(logger.WithLogError(ctx, err), "failed to update entity")
+		ctx.JSON(http.StatusInternalServerError, err.Error())
 		return
 	}
+
 	//если дошли до сюда, значит все обновилось, отправляем 200
 	ctx.Status(http.StatusOK)
 
 }
 
-func (controller *entityController) DeleteEntity(ctx *gin.Context) {
+// deleteEntity удаляет model.Entity из приложения
+func (controller *entityController) deleteEntity(ctx *gin.Context) {
+
+	slog.Info("deleteEntity in controller started")
+
+	//проверка uuid, переданного в урле, если не uuid, то 400
 	uuidFromURL, err := uuid.Parse(ctx.Param("id"))
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, "param must be uuid")
+		ctx.JSON(http.StatusBadRequest, err.Error())
 	}
 
-	if err := controller.service.DeleteEntity(ctx, uuidFromURL); err != nil {
-		ctx.Status(http.StatusInternalServerError)
+	//удаление entity из базы, если ошибка, то 500
+	if err = controller.service.DeleteEntity(ctx, uuidFromURL); err != nil {
+		slog.ErrorContext(logger.WithLogError(ctx, err), "failed to update entity")
+		ctx.JSON(http.StatusInternalServerError, err.Error())
 		return
 	}
+
 	ctx.Status(http.StatusOK)
 }

@@ -8,6 +8,8 @@ import (
 	"net/http"
 )
 
+// customWriter релизует интерфейс типа gin.ResponseWriter, нужен, чтобы перехватить
+// тело ответа и залогировать его
 type customWriter struct {
 	originalWriter gin.ResponseWriter
 	responseBody   *bytes.Buffer

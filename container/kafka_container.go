@@ -3,12 +3,13 @@ package container
 import (
 	"context"
 	"customers_kuber/closer"
+	"customers_kuber/logger"
 	"fmt"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-connections/nat"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
-	"log"
+	"log/slog"
 	"time"
 )
 
@@ -47,10 +48,11 @@ func RunKafka() error {
 	//передача функции в closer для graceful shutdown
 	closer.CloseFunctions = append(closer.CloseFunctions, func() {
 		if err = kafkaContainer.Terminate(ctx); err != nil {
-			log.Println("failed to terminate kafka container:", err)
+			ctx = logger.WithLogError(ctx, err)
+			slog.ErrorContext(ctx, "failed to terminate kafka container")
 			return
 		}
-		log.Println("kafka container terminated successfully")
+		slog.Info("kafka container terminated successfully")
 	})
 	time.Sleep(time.Second * 3)
 	return nil

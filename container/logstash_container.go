@@ -3,11 +3,12 @@ package container
 import (
 	"context"
 	"customers_kuber/closer"
+	"customers_kuber/logger"
 	"fmt"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-connections/nat"
 	"github.com/testcontainers/testcontainers-go"
-	"log"
+	"log/slog"
 	"time"
 )
 
@@ -43,10 +44,11 @@ func RunLogstash() error {
 	//передача функции в closer для graceful shutdown
 	closer.CloseFunctions = append(closer.CloseFunctions, func() {
 		if err = logstashContainer.Terminate(ctx); err != nil {
-			log.Println("failed to terminate logstash container:", err)
+			ctx = logger.WithLogError(ctx, err)
+			slog.ErrorContext(ctx, "failed to terminate logstash container")
 			return
 		}
-		log.Println("logstash container terminated successfully")
+		slog.Info("logstash container terminated successfully")
 	})
 	time.Sleep(time.Second * 3)
 	return nil

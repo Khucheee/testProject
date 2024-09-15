@@ -3,11 +3,12 @@ package container
 import (
 	"context"
 	"customers_kuber/closer"
+	"customers_kuber/logger"
 	"fmt"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-connections/nat"
 	"github.com/testcontainers/testcontainers-go"
-	"log"
+	"log/slog"
 	"time"
 )
 
@@ -44,10 +45,11 @@ func RunPostgres() error {
 	//передача функции в closer для graceful shutdown
 	closer.CloseFunctions = append(closer.CloseFunctions, func() {
 		if err = pgContainer.Terminate(ctx); err != nil {
-			log.Println("failed to terminate postgres container:", err)
+			ctx = logger.WithLogError(ctx, err)
+			slog.ErrorContext(ctx, "failed to terminate postgres container")
 			return
 		}
-		log.Println("postgres container terminated successfully")
+		slog.Info("postgres container terminated successfully")
 	})
 	time.Sleep(time.Second * 3)
 	return nil

@@ -4,11 +4,12 @@ import (
 	"context"
 	"customers_kuber/closer"
 	"customers_kuber/config"
+	"customers_kuber/logger"
 	"fmt"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-connections/nat"
 	"github.com/testcontainers/testcontainers-go"
-	"log"
+	"log/slog"
 	"time"
 )
 
@@ -44,10 +45,11 @@ func RunKibana() error {
 	//передача функции в closer для graceful shutdown
 	closer.CloseFunctions = append(closer.CloseFunctions, func() {
 		if err = kibanaContainer.Terminate(ctx); err != nil {
-			log.Println("failed to terminate kibana container:", err)
+			ctx = logger.WithLogError(ctx, err)
+			slog.ErrorContext(ctx, "failed to terminate kibana container")
 			return
 		}
-		log.Println("kibana container terminated successfully")
+		slog.Info("kibana container terminated successfully")
 	})
 	time.Sleep(time.Second * 3)
 	return nil

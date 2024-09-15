@@ -1,7 +1,7 @@
 package closer
 
 import (
-	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"sync"
@@ -11,9 +11,13 @@ import (
 var CloseFunctions []func()
 
 func InitGracefulShutdown() *sync.WaitGroup {
+	slog.Debug("InitGracefulShutdown started")
 	var wg sync.WaitGroup
+	slog.Debug("WaitGroup for graceful shutdown created")
 	wg.Add(1)
+	slog.Debug("WaitGroup count: 1")
 	go func() {
+		slog.Debug("Call CtrlC func in InitGracefulShutdown")
 		CtrlC()
 		wg.Done()
 	}()
@@ -21,15 +25,15 @@ func InitGracefulShutdown() *sync.WaitGroup {
 }
 
 func CtrlC() {
+	slog.Debug("func CtrlC started")
 	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	slog.Debug("channel for catching ctrl+c created")
+	signal.Notify(sigChan, syscall.SIGINT)
+	slog.Debug("channel was set for receiving SIGINT signal, waiting for signal")
 	<-sigChan
-	log.Println("Receive signal to stop working")
+	slog.Debug("signal from sigChan received, starting graceful shutdown")
 	for iterator := len(CloseFunctions) - 1; iterator >= 0; iterator-- {
 		CloseFunctions[iterator]()
 	}
-	//for _, closeFunction := range CloseFunctions {
-	//	closeFunction()
-	//}
-
+	slog.Debug("graceful shutdown completed")
 }

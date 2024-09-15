@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"customers_kuber/closer"
 	"customers_kuber/config"
 	"customers_kuber/container"
@@ -18,7 +19,7 @@ func main() {
 
 	logger.InitLogging()
 
-	controller.GetEntityController().Route()
+	controller.GetEntityController().Route(context.Background())
 
 	wg.Wait()
 

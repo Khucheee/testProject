@@ -5,12 +5,14 @@ import (
 	"customers_kuber/cache"
 	"customers_kuber/closer"
 	"customers_kuber/config"
+	"customers_kuber/logger"
 	"customers_kuber/model"
 	"customers_kuber/repository"
 	"encoding/json"
 	"fmt"
 	"github.com/segmentio/kafka-go"
 	"log"
+	"log/slog"
 	"time"
 )
 
@@ -18,7 +20,6 @@ var entityListenerInstance *entityListener
 
 type EntityListener interface {
 	StartListening()
-	CloseEntityListener() func()
 }
 
 type entityListener struct {
@@ -34,6 +35,8 @@ func GetEntityListener() (EntityListener, error) {
 	if entityListenerInstance != nil {
 		return entityListenerInstance, nil
 	}
+
+	ctx := context.Background()
 
 	//определяю адрес кафки
 	kafkaAddress := fmt.Sprintf("%s:%s", config.KafkaHost, config.KafkaPort)
@@ -58,19 +61,16 @@ func GetEntityListener() (EntityListener, error) {
 	}
 
 	//передаем функцию закрытия в клозер для graceful shutdown
-	closer.CloseFunctions = append(closer.CloseFunctions, entityListenerInstance.CloseEntityListener())
-	return entityListenerInstance, nil
-}
-
-func (listener *entityListener) CloseEntityListener() func() {
-	return func() {
-		listener.stopSignal = true
-		if err := listener.reader.Close(); err != nil {
-			log.Println("failed to close listener:", err)
+	closer.CloseFunctions = append(closer.CloseFunctions, func() {
+		entityListenerInstance.stopSignal = true
+		if err := entityListenerInstance.reader.Close(); err != nil {
+			ctx = logger.WithLogError(ctx, err)
+			slog.ErrorContext(ctx, "failed to close listener")
 			return
 		}
 		log.Println("entityListener closed successfully")
-	}
+	})
+	return entityListenerInstance, nil
 }
 
 func (listener *entityListener) StartListening() {
@@ -81,8 +81,12 @@ func (listener *entityListener) StartListening() {
 			break
 		}
 		time.Sleep(time.Second * 1)
-		msg, err := listener.reader.ReadMessage(context.Background())
-		if err != nil && err.Error() != "fetching message: EOF" {
+		ctx := context.Background()
+		msg, err := listener.reader.ReadMessage(ctx)
+		if err != nil {
+			if err.Error() == "fetching message: EOF" {
+				continue
+			}
 			log.Println("failed to read message:", err)
 			continue
 		}
@@ -94,7 +98,7 @@ func (listener *entityListener) StartListening() {
 			log.Println("failed to deserialize message from kafka:", err)
 			continue
 		}
-		log.Println("message from kafka received:", entity)
+		slog.InfoContext(logger.WithLogValues(ctx, entity), "listener received message from kafka")
 
 		//сохраняю Entity в базу
 		for i := 1; i < 3; i++ {
@@ -104,7 +108,6 @@ func (listener *entityListener) StartListening() {
 			log.Printf("Failed to save entity in service: %s", err)
 			log.Printf("Retry to save entity: %d", i)
 		}
-
-		listener.cache.ClearCache()
+		listener.cache.ClearCache(ctx)
 	}
 }
