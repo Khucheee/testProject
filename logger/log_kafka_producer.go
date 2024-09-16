@@ -6,7 +6,7 @@ import (
 	"customers_kuber/config"
 	"fmt"
 	"github.com/segmentio/kafka-go"
-	"log"
+	"log/slog"
 	"sync"
 )
 
@@ -58,18 +58,20 @@ func GetLogProducer() (LogProducer, error) {
 }
 
 func (producer *logProducer) ProduceLogToKafka(logs []byte) {
-	//передаю значение в канал воркера
 	mu.Lock()
 	defer mu.Unlock()
-	_ = producer.writer.WriteMessages(context.Background(), kafka.Message{Value: logs})
+	err := producer.writer.WriteMessages(context.Background(), kafka.Message{Value: logs})
+	if err != nil && config.KafkaEnabled {
+		fmt.Printf("\nFAILED TO PRODUCE LOG TO KAFKA: %s\n", err)
+	}
 }
 
 func (producer *logProducer) CloseLogProducer() func() {
 	return func() {
 		if err := producer.writer.Close(); err != nil {
-			log.Println("log producer closing failed:", err)
+			slog.ErrorContext(WithLogError(context.Background(), err), "log producer closing failed")
 			return
 		}
-		log.Println("logProducer closed successfully")
+		slog.Info("logProducer closed successfully")
 	}
 }

@@ -9,7 +9,6 @@ import (
 	_ "github.com/lib/pq"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 	"log"
 )
 
@@ -37,7 +36,7 @@ func GetEntityRepository() (EntityRepository, error) {
 
 	//открываем соединение
 	dbConnect, err := gorm.Open(postgres.Open(dbConfig), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Info),
+		//Logger: logger.Default.LogMode(logger.Info),
 	})
 
 	//инициализируем инстанс репозитория

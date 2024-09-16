@@ -11,8 +11,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/segmentio/kafka-go"
-	"log"
 	"log/slog"
+	"strconv"
 	"time"
 )
 
@@ -47,9 +47,10 @@ func GetEntityListener() (EntityListener, error) {
 		Topic:   config.KafkaTopic,
 	})
 
+	//получаю кэш
 	cacheConnect, err := cache.GetEntityCache()
 	if err != nil {
-		log.Printf("failed to get cache in listener: %s", err)
+		slog.ErrorContext(logger.WithLogError(ctx, err), "failed to get cache, while creating entityListener")
 	}
 
 	//инициализируем инсстанс листенера
@@ -68,14 +69,20 @@ func GetEntityListener() (EntityListener, error) {
 			slog.ErrorContext(ctx, "failed to close listener")
 			return
 		}
-		log.Println("entityListener closed successfully")
+		slog.Info("entityListener closed successfully")
 	})
 	return entityListenerInstance, nil
 }
 
 func (listener *entityListener) StartListening() {
-
-	//вызываем раз в секунду ReadMessage чтобы забрать сообщение из топика
+	numRetries, err := strconv.Atoi(config.RepositoryRetries)
+	if err != nil {
+		slog.ErrorContext(
+			logger.WithLogError(context.Background(), err),
+			"failed to get config.RepositoryRetries in listener")
+		numRetries = 3
+	}
+	//todo переписать на использование каналов
 	for {
 		if listener.stopSignal == true {
 			break
@@ -87,7 +94,7 @@ func (listener *entityListener) StartListening() {
 			if err.Error() == "fetching message: EOF" {
 				continue
 			}
-			log.Println("failed to read message:", err)
+			slog.ErrorContext(logger.WithLogError(ctx, err), "failed to read message from kafka in listener")
 			continue
 		}
 
@@ -95,18 +102,19 @@ func (listener *entityListener) StartListening() {
 		var entity model.Entity
 		err = json.Unmarshal(msg.Value, &entity)
 		if err != nil {
-			log.Println("failed to deserialize message from kafka:", err)
+			slog.ErrorContext(logger.WithLogError(ctx, err), "failed to deserialize message from kafka in listener")
 			continue
 		}
 		slog.InfoContext(logger.WithLogValues(ctx, entity), "listener received message from kafka")
 
 		//сохраняю Entity в базу
-		for i := 1; i < 3; i++ {
+		for i := 0; i <= numRetries; i++ {
 			if err = listener.repository.SaveEntity(entity); err == nil {
 				break
 			}
-			log.Printf("Failed to save entity in service: %s", err)
-			log.Printf("Retry to save entity: %d", i)
+			slog.ErrorContext(
+				logger.WithLogError(ctx, err),
+				"listener failed trying to save entity, retry "+string(i)+" of "+string(numRetries))
 		}
 		listener.cache.ClearCache(ctx)
 	}

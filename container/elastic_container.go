@@ -3,6 +3,7 @@ package container
 import (
 	"context"
 	"customers_kuber/closer"
+	"customers_kuber/config"
 	"customers_kuber/logger"
 	"fmt"
 	"github.com/docker/docker/api/types/container"
@@ -19,10 +20,10 @@ func RunElastic() error {
 	elasticReq := testcontainers.ContainerRequest{
 		Name:         "elasticsearch",
 		Image:        "elasticsearch:8.15.0",
-		ExposedPorts: []string{"9200/tcp"},
+		ExposedPorts: []string{config.ElasticsearchPort + "/tcp"},
 		Env: map[string]string{
-			"discovery.type":         "single-node",
-			"xpack.security.enabled": "false", // Отключаем xpack security для упрощения тестов
+			"discovery.type":        "single-node",
+			"pack.security.enabled": "false",
 		},
 		HostConfigModifier: func(hostConfig *container.HostConfig) {
 			hostConfig.NetworkMode = "NET"
@@ -30,7 +31,7 @@ func RunElastic() error {
 				"9200/tcp": []nat.PortBinding{
 					{
 						HostIP:   "0.0.0.0",
-						HostPort: "9200"},
+						HostPort: config.ElasticsearchPort},
 				},
 			}
 		},

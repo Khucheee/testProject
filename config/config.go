@@ -21,6 +21,9 @@ var ElasticsearchPort string
 var ElasticsearchHost string
 var KibanaHost string
 var KibanaPort string
+var WorkersCount string
+var RepositoryRetries string
+var KafkaEnabled bool
 
 //если приложение поднято в кубере, то будут использоваться переменные окружения из configmap и secrets
 
@@ -68,6 +71,12 @@ func SetConfig() {
 	}
 	if KibanaPort = os.Getenv("kibanaPort"); KibanaPort == "" {
 		KibanaPort = "5601"
+	}
+	if WorkersCount = os.Getenv("workersCount"); WorkersCount == "" {
+		WorkersCount = "15"
+	}
+	if RepositoryRetries = os.Getenv("repositoryRetries"); RepositoryRetries == "" {
+		RepositoryRetries = "3"
 	}
 
 	//в случае с локальным запуском пароль и логин от базы можно забирать с помощью флагов командной строки

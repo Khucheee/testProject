@@ -2,7 +2,6 @@ package logger
 
 import (
 	"context"
-	"customers_kuber/model"
 	"encoding/json"
 	"github.com/google/uuid"
 	"log/slog"
@@ -36,9 +35,7 @@ func (writer logWriter) Write(p []byte) (n int, err error) {
 
 // InitLogging устанавливает мой логгер как дефолтный, включает кастомное логирвоание
 func InitLogging() {
-
 	ctx := context.Background()
-
 	if err := CreateLogTopic(); err != nil {
 		slog.ErrorContext(ctx, "failed to init kafka logging")
 	}
@@ -58,24 +55,11 @@ func WithLogError(ctx context.Context, err error) context.Context {
 
 func WithLogValues(ctx context.Context, values interface{}) context.Context {
 	var valuesString string
-	if data, ok := values.(model.Test); ok {
-		dataJSON, _ := json.Marshal(data)
-		valuesString = string(dataJSON)
-	}
-
-	if data, ok := values.(model.Entity); ok {
-		dataJSON, _ := json.Marshal(data)
-		valuesString = string(dataJSON)
-	}
-
-	if data, ok := values.([]model.Entity); ok {
-		dataJSON, _ := json.Marshal(data)
-		valuesString = string(dataJSON)
-	}
-
 	if data, ok := values.(uuid.UUID); ok {
 		valuesString = data.String()
 	}
+	dataJSON, _ := json.Marshal(values)
+	valuesString = string(dataJSON)
 
 	if logCtx, ok := ctx.Value("log").(LogCtx); ok {
 		logCtx.values = valuesString
@@ -117,13 +101,9 @@ func (handler *HandlerMiddleware) Handle(ctx context.Context, rec slog.Record) e
 		if logCtx.error != nil {
 			rec.Add("error", logCtx.error.Error())
 		}
-	}
-	if logCtx, ok := ctx.Value("log").(LogCtx); ok {
 		if logCtx.cachePath != "" {
 			rec.Add("error", logCtx.cachePath)
 		}
-	}
-	if logCtx, ok := ctx.Value("log").(LogCtx); ok {
 		if logCtx.values != "" {
 			rec.Add("values", logCtx.values)
 		}

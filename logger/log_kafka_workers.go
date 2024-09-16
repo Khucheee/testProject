@@ -3,7 +3,10 @@ package logger
 import (
 	"context"
 	"customers_kuber/closer"
+	"customers_kuber/config"
 	"fmt"
+	"log/slog"
+	"strconv"
 	"sync"
 )
 
@@ -48,9 +51,11 @@ func GetLogKafkaWorker(logChannel chan string) LogKafkaWorker {
 func (worker *logKafkaWorker) startWorkers(ctx context.Context) {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	worker.cancelFunc = cancelFunc
-
-	//todo вынести количество воркеров в конфиг
-	for i := 0; i <= 15; i++ {
+	workersCount, err := strconv.Atoi(config.WorkersCount)
+	if err != nil {
+		fmt.Println("failed to convert config.WorkersCount to int:", err)
+	}
+	for i := 0; i <= workersCount; i++ {
 		worker.wg.Add(1)
 		go worker.spawnWorker(ctx)
 	}
@@ -59,7 +64,7 @@ func (worker *logKafkaWorker) startWorkers(ctx context.Context) {
 func (worker *logKafkaWorker) stopWorkers() {
 	worker.cancelFunc()
 	worker.wg.Wait()
-	fmt.Println("workers done")
+	slog.Info("workers stopped successfully")
 }
 
 func (worker *logKafkaWorker) GetLogChannel() chan string {

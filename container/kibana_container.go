@@ -20,7 +20,7 @@ func RunKibana() error {
 	kibanaReq := testcontainers.ContainerRequest{
 		Name:         "kibana",
 		Image:        "kibana:8.15.0",
-		ExposedPorts: []string{"5601/tcp"},
+		ExposedPorts: []string{config.KibanaPort + "/tcp"},
 		Env: map[string]string{
 			"ELASTICSEARCH_HOSTS": elasticsearchAddress,
 		},
@@ -28,7 +28,7 @@ func RunKibana() error {
 			hostConfig.NetworkMode = "NET"
 			hostConfig.PortBindings = nat.PortMap{
 				"5601/tcp": []nat.PortBinding{
-					{HostIP: "0.0.0.0", HostPort: "5601"},
+					{HostIP: "0.0.0.0", HostPort: config.KibanaPort},
 				}}
 		},
 	}
