@@ -55,7 +55,7 @@ func GetEntityCache() (EntityCache, error) {
 	closer.CloseFunctions = append(closer.CloseFunctions, func() {
 		if err := entityCacheInstance.connect.Close(); err != nil {
 			ctx = logger.WithLogError(ctx, err)
-			slog.WarnContext(ctx, "failed to close redis connection")
+			slog.ErrorContext(ctx, "failed to close redis connection")
 			return
 		}
 		slog.Debug("entityCache closed successfully")

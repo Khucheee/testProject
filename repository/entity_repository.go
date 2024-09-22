@@ -1,15 +1,17 @@
 package repository
 
 import (
+	"context"
 	"customers_kuber/closer"
 	"customers_kuber/config"
+	"customers_kuber/logger"
 	"customers_kuber/model"
 	"fmt"
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"log"
+	"log/slog"
 )
 
 var entityRepositoryInstance *entityRepository
@@ -29,6 +31,8 @@ func GetEntityRepository() (EntityRepository, error) {
 	if entityRepositoryInstance != nil {
 		return entityRepositoryInstance, nil
 	}
+
+	ctx := context.Background()
 
 	//устанавливаемм адрес базы
 	dbConfig := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
@@ -52,31 +56,30 @@ func GetEntityRepository() (EntityRepository, error) {
 	}
 
 	//передаем функцию закрытия в клозер для graceful shutdown
-	closer.CloseFunctions = append(closer.CloseFunctions, entityRepositoryInstance.CloseEntityRepository())
+	closer.CloseFunctions = append(closer.CloseFunctions, func() {
+		dbInterface, err := dbConnect.DB()
+		if err != nil {
+			ctx = logger.WithLogError(ctx, err)
+			slog.ErrorContext(ctx, "failed to get DB interface while closing connection")
+			return
+		}
+		if err := dbInterface.Close(); err != nil {
+			ctx = logger.WithLogError(ctx, err)
+			slog.ErrorContext(ctx, "failed while closing DB connection")
+			return
+		}
+		slog.Info("entityRepository closed successfully")
+	})
 	return entityRepositoryInstance, nil
 }
 
-func (repository *entityRepository) CloseEntityRepository() func() {
-	dbInterface, err := repository.db.DB()
-	if err != nil {
-		log.Println("failed to get DB interface while closing connection:", err)
-	}
-	return func() {
-		if err := dbInterface.Close(); err != nil {
-			log.Println("failed while closing DB connection:", err)
-			return
-		}
-		log.Println("entityRepository closed successfully")
-	}
-}
-
 func (repository *entityRepository) SaveEntity(e model.Entity) error {
-
 	//сохраняю Entity в базу
 	result := repository.db.Create(&e)
 	if result.Error != nil {
 		return fmt.Errorf("failed to save entity into repository: %s", result.Error)
 	}
+	slog.Info("entity successfully saved to repository")
 	return nil
 }
 
@@ -85,9 +88,9 @@ func (repository *entityRepository) GetEntities() ([]model.Entity, error) {
 	//запрашиваем в базе все записи Entities
 	var entities []model.Entity
 	if result := repository.db.Find(&entities); result.Error != nil {
-		log.Printf("failed to get all entities from repository: %s", result.Error)
 		return entities, result.Error
 	}
+
 	return entities, nil
 }
 
@@ -96,37 +99,22 @@ func (repository *entityRepository) UpdateEntity(entity model.Entity) error {
 	checkExistence := model.Entity{}
 	result := repository.db.Where("id=?", entity.Id).First(&checkExistence)
 	if result.Error != nil {
-		log.Printf("failed to find row while updating entity: %s", result.Error)
 		return result.Error
 	}
 
 	//если запись нашлась, то обновляю её
 	if result = repository.db.Model(&entity).Where("id=?", entity.Id).Updates(map[string]interface{}{"id": entity.Id, "Test": entity.Test}); result.Error != nil {
-		log.Printf("failed to update data in repository: %s", result.Error)
 		return result.Error
 	}
-	log.Println("entity updated successfully")
+	slog.Info("entity successfully updated in repository")
 	return nil
 }
 
 func (repository *entityRepository) DeleteEntity(id uuid.UUID) error {
 	entity := model.Entity{}
 	if result := repository.db.Where("Id = ?", id).Delete(&entity); result.Error != nil {
-		err := fmt.Errorf("failed to delete data from repository: %s", result.Error)
-		log.Println(err)
-		return err
+		return fmt.Errorf("failed to delete data from repository: %s", result.Error)
 	}
-	log.Println("deleting from database ended successfully")
+	slog.Info("entity successfully updated in repository")
 	return nil
 }
-
-/*
-func (repository *entityRepository) DeleteEntity(id string) model.Entity {
-	entity := model.Entity{}
-	if result := repository.db.Clauses(clause.Returning{}).Where("Id = ?", id).Delete(&entity); result.Error != nil {
-		log.Println(result.Error)
-	}
-	log.Println("deleted from database ended: ", entity)
-	return entity
-}
-*/
