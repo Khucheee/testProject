@@ -30,6 +30,7 @@ var KafkaEnabled bool
 var GracefulShutdownTimeoutSec int
 var LoggingLevel int
 var LogSourceEnabled bool
+var RedisDataExpirationSec int
 
 //если приложение поднято в кубере, то будут использоваться переменные окружения из configmap и secrets
 
@@ -59,6 +60,12 @@ func SetConfig() {
 	}
 	if RedisPort = os.Getenv("redisPort"); RedisPort == "" {
 		RedisPort = "6379"
+	}
+	expiration, err := strconv.Atoi(os.Getenv("gracefulShutdownTimeoutSec"))
+	if err != nil {
+		RedisDataExpirationSec = 3600
+	} else {
+		GracefulShutdownTimeoutSec = expiration
 	}
 	if LogstashHost = os.Getenv("logstashHost"); LogstashHost == "" {
 		LogstashHost = "logstash"

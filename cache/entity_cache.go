@@ -55,7 +55,7 @@ func GetEntityCache() (EntityCache, error) {
 	closer.CloseFunctions = append(closer.CloseFunctions, func() {
 		if err := entityCacheInstance.connect.Close(); err != nil {
 			ctx = logger.WithLogError(ctx, err)
-			slog.ErrorContext(ctx, "failed to close redis connection")
+			slog.WarnContext(ctx, "failed to close redis connection")
 			return
 		}
 		slog.Debug("entityCache closed successfully")
@@ -68,35 +68,35 @@ func (cache *entityCache) ClearCache(ctx context.Context) {
 	status := cache.connect.FlushAll(ctx)
 	if err := status.Err(); err != nil {
 		ctx = logger.WithLogError(ctx, err)
-		slog.ErrorContext(ctx, "failed to clear cache")
+		slog.WarnContext(ctx, "failed to clear cache")
 		return
 	}
-	slog.Debug("cache cleared successfully")
+	slog.Info("cache cleared successfully")
+	return
 }
 
 func (cache *entityCache) UpdateCache(ctx context.Context, entitySlice []model.Entity) {
-
-	slog.Debug("update cache started", "Debug values", entitySlice)
+	slog.DebugContext(logger.WithLogValues(ctx, entitySlice), "update cache started")
 	marshalledEntity, err := json.Marshal(entitySlice)
 	if err != nil {
 		logger.WithLogError(ctx, err)
-		slog.ErrorContext(ctx, "failed to marshal entity while saving to cache")
+		slog.WarnContext(ctx, "failed to marshal entity while saving to cache")
 		return
 	}
 	slog.Debug("entitySlice in updateCache marshalled to JSON successfully", "Debug values", string(marshalledEntity))
-
-	//TODO надо будет вынести redisDataExpiration в конфиг
 	key := fmt.Sprintf("entity_%s", cache.path)
-	redisDataExpiration := time.Second * 3600
+	redisDataExpiration := time.Second * time.Duration(config.RedisDataExpirationSec)
 	ctx = logger.WithLogCacheKey(ctx, key)
 	slog.DebugContext(ctx, "cache key in UpdateCache was set"+", redis data expiration time in seconds = "+
 		string(redisDataExpiration/1000))
 	data := cache.connect.Set(ctx, key, marshalledEntity, redisDataExpiration)
-	if data.Err() != nil {
+	if err = data.Err(); err != nil {
 		logger.WithLogError(ctx, err)
-		slog.ErrorContext(ctx, "failed to save cache to redis")
+		slog.WarnContext(ctx, "failed to save cache to redis")
+		return
 	}
-	slog.Debug("cache updated successfully")
+	slog.Info("cache updated successfully")
+
 }
 
 func (cache *entityCache) GetCache(ctx context.Context) []model.Entity {
@@ -113,21 +113,22 @@ func (cache *entityCache) GetCache(ctx context.Context) []model.Entity {
 	data := cache.connect.Get(ctx, key)
 	if err := data.Err(); err != nil && err.Error() != "redis: nil" {
 		ctx = logger.WithLogError(ctx, err)
-		slog.ErrorContext(ctx, "failed to get cache from redis")
+		slog.WarnContext(ctx, "failed to get cache from redis")
+		return nil
 	}
 	slog.Debug("cache taken from redis successfully")
 	//если кэш пустой, возвращаем nil слайс
 	if data.Val() == "" {
-		slog.Debug("cache is empty, returning nil slice to service")
+		slog.Info("cache is empty, returning nil slice to service")
 		return entities
 	}
 	//если в кэше что-то лежит, парсим json в слайс, возвращаем его
 	if err := json.Unmarshal([]byte(data.Val()), &entities); err != nil {
 		ctx = logger.WithLogError(ctx, err)
-		slog.ErrorContext(ctx, "failed to unmarshal json taken from redis")
+		slog.WarnContext(ctx, "failed to unmarshal json taken from redis")
+		return nil
 	}
-	slog.Debug("cache is not empty returning values to service")
-
+	slog.Info("cache is not empty returning values to service")
 	return entities
 }
 
