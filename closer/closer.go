@@ -1,11 +1,14 @@
 package closer
 
 import (
+	"context"
+	"customers_kuber/config"
 	"log/slog"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
+	"time"
 )
 
 var CloseFunctions []func()
@@ -26,12 +29,20 @@ func InitGracefulShutdown() *sync.WaitGroup {
 
 func CtrlC() {
 	slog.Debug("func CtrlC started")
+	timeout := config.GracefulShutdownTimeoutSec
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(timeout))
+	defer cancel()
 	sigChan := make(chan os.Signal, 1)
 	slog.Debug("channel for catching ctrl+c created")
 	signal.Notify(sigChan, syscall.SIGINT)
 	slog.Debug("channel was set for receiving SIGINT signal, waiting for signal")
 	<-sigChan
 	slog.Debug("signal from sigChan received, starting graceful shutdown")
+	go func() {
+		<-ctx.Done()
+		slog.Warn("Failed to finish graceful shutdown before timeout")
+		os.Exit(1)
+	}()
 	for iterator := len(CloseFunctions) - 1; iterator >= 0; iterator-- {
 		CloseFunctions[iterator]()
 	}

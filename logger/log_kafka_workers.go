@@ -27,9 +27,9 @@ type LogKafkaWorker interface {
 	GetLogChannel() chan string
 }
 
-// GetLogKafkaWorker принимает канал, в который логгер будет отправлять логи для записи в kafka
-// создает LogKafkaWorker, который будет забирать логи из канала и передавать их в kafkaLogProducer
-// если интерфейс уже создан, вернет существующий
+// GetLogKafkaWorker принимает канал, в который логгер будет отправлять логи для записи в kafka,
+// создает LogKafkaWorker, который будет забирать логи из канала и передавать их в kafkaLogProducer,
+// реализовано через синглтон
 func GetLogKafkaWorker(logChannel chan string) LogKafkaWorker {
 	if logKafkaWorkerInstance != nil {
 		return logKafkaWorkerInstance

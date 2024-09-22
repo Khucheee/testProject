@@ -22,8 +22,8 @@ func RunElastic() error {
 		Image:        "elasticsearch:8.15.0",
 		ExposedPorts: []string{config.ElasticsearchPort + "/tcp"},
 		Env: map[string]string{
-			"discovery.type":        "single-node",
-			"pack.security.enabled": "false",
+			"discovery.type":         "single-node",
+			"xpack.security.enabled": "false",
 		},
 		HostConfigModifier: func(hostConfig *container.HostConfig) {
 			hostConfig.NetworkMode = "NET"

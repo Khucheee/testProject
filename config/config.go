@@ -1,6 +1,9 @@
 package config
 
-import "os"
+import (
+	"os"
+	"strconv"
+)
 
 var Kuber string
 var KafkaHost string
@@ -24,6 +27,9 @@ var KibanaPort string
 var WorkersCount string
 var RepositoryRetries string
 var KafkaEnabled bool
+var GracefulShutdownTimeoutSec int
+var LoggingLevel int
+var LogSourceEnabled bool
 
 //если приложение поднято в кубере, то будут использоваться переменные окружения из configmap и secrets
 
@@ -78,9 +84,29 @@ func SetConfig() {
 	if RepositoryRetries = os.Getenv("repositoryRetries"); RepositoryRetries == "" {
 		RepositoryRetries = "3"
 	}
-
-	//в случае с локальным запуском пароль и логин от базы можно забирать с помощью флагов командной строки
-	//но тогда все равно придется указывать дефолтные значения на случай если аргументов нет
+	timeout, err := strconv.Atoi(os.Getenv("gracefulShutdownTimeoutSec"))
+	if err != nil {
+		GracefulShutdownTimeoutSec = 30
+	} else {
+		GracefulShutdownTimeoutSec = timeout
+	}
+	LoggingLevelString := os.Getenv("loggingLevel")
+	if LoggingLevelString == "info" {
+		LoggingLevel = 0
+	}
+	if LoggingLevelString == "debug" {
+		LoggingLevel = -4
+	}
+	if LoggingLevelString == "warn" {
+		LoggingLevel = 4
+	}
+	if LoggingLevelString == "error" {
+		LoggingLevel = 8
+	}
+	LogSourceEnabledString := os.Getenv("loggingLevel")
+	if LogSourceEnabledString == "true" {
+		LogSourceEnabled = true
+	}
 	if PostgresDatabaseName = os.Getenv("postgresDatabaseName"); PostgresDatabaseName == "" {
 		PostgresDatabaseName = "postgres"
 	}
@@ -93,4 +119,5 @@ func SetConfig() {
 	if RedisPassword = os.Getenv("redisPassword"); RedisPassword == "" {
 		RedisPassword = ""
 	}
+
 }

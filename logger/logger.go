@@ -2,6 +2,7 @@ package logger
 
 import (
 	"context"
+	"customers_kuber/config"
 	"encoding/json"
 	"github.com/google/uuid"
 	"log/slog"
@@ -39,7 +40,7 @@ func InitLogging() {
 	if err := CreateLogTopic(); err != nil {
 		slog.ErrorContext(ctx, "failed to init kafka logging")
 	}
-	handlerOptions := &slog.HandlerOptions{AddSource: false, Level: slog.LevelInfo}
+	handlerOptions := &slog.HandlerOptions{AddSource: config.LogSourceEnabled, Level: slog.Level(config.LoggingLevel)}
 	slog.SetDefault(slog.New(NewHandlerMiddleware(handlerOptions)))
 }
 
