@@ -86,6 +86,7 @@ func (controller *entityController) saveEntity(ctx *gin.Context) {
 	test := &model.Test{}
 	if err := ctx.BindJSON(test); err != nil {
 		ctx.JSON(http.StatusBadRequest, err.Error())
+		slog.Info("saveEntity in controller finished")
 		return
 	}
 
@@ -93,11 +94,13 @@ func (controller *entityController) saveEntity(ctx *gin.Context) {
 	if err := controller.service.SaveEntity(ctx, *test); err != nil {
 		slog.ErrorContext(logger.WithLogError(ctx, err), "failed to save entity")
 		ctx.JSON(http.StatusInternalServerError, err.Error())
+		slog.Info("saveEntity in controller finished")
 		return
 	}
 
 	//если все ок, 200
 	ctx.Status(http.StatusAccepted)
+	slog.Info("saveEntity in controller finished")
 }
 
 // getAllEntities возвращает все ранее сохраненные в приложении model.Entity
@@ -110,9 +113,11 @@ func (controller *entityController) getAllEntities(ctx *gin.Context) {
 	if err != nil {
 		slog.ErrorContext(logger.WithLogError(ctx, err), "failed to get all entities")
 		ctx.JSON(http.StatusInternalServerError, err.Error())
+		slog.Info("getAllEntities in controller finished")
 		return
 	}
 	ctx.JSON(http.StatusOK, entities)
+	slog.Info("getAllEntities in controller finished")
 }
 
 // updateEntity обновляет ранее сохраненный model.Entity
@@ -126,6 +131,7 @@ func (controller *entityController) updateEntity(ctx *gin.Context) {
 	uuidFromURL, err := uuid.Parse(ctx.Param("id"))
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, err.Error())
+		slog.Info("updateEntity in controller finished")
 		return
 	}
 
@@ -133,12 +139,14 @@ func (controller *entityController) updateEntity(ctx *gin.Context) {
 	entity := &model.EntityForUpdate{}
 	if err := ctx.ShouldBindJSON(entity); err != nil {
 		ctx.JSON(http.StatusBadRequest, err.Error())
+		slog.Info("updateEntity in controller finished")
 		return
 	}
 
 	//сравниваем id в теле и в урле, если не совпадают, 400
 	if entity.Id != uuidFromURL {
 		ctx.JSON(http.StatusTeapot, "ID in url and ID in body doesn't match!")
+		slog.Info("updateEntity in controller finished")
 		return
 	}
 
@@ -147,16 +155,18 @@ func (controller *entityController) updateEntity(ctx *gin.Context) {
 	if err != nil {
 		if err.Error() == "record not found" {
 			ctx.Status(http.StatusNotFound)
+			slog.Info("updateEntity in controller finished")
 			return
 		}
 		slog.ErrorContext(logger.WithLogError(ctx, err), "failed to update entity")
 		ctx.JSON(http.StatusInternalServerError, err.Error())
+		slog.Info("updateEntity in controller finished")
 		return
 	}
 
 	//если дошли до сюда, значит все обновилось, отправляем 200
 	ctx.Status(http.StatusOK)
-
+	slog.Info("updateEntity in controller finished")
 }
 
 // deleteEntity удаляет model.Entity из приложения
@@ -168,14 +178,17 @@ func (controller *entityController) deleteEntity(ctx *gin.Context) {
 	uuidFromURL, err := uuid.Parse(ctx.Param("id"))
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, err.Error())
+		slog.Info("deleteEntity in controller finished")
 	}
 
 	//удаление entity из базы, если ошибка, то 500
 	if err = controller.service.DeleteEntity(ctx, uuidFromURL); err != nil {
 		slog.ErrorContext(logger.WithLogError(ctx, err), "failed to update entity")
 		ctx.JSON(http.StatusInternalServerError, err.Error())
+		slog.Info("deleteEntity in controller finished")
 		return
 	}
 
 	ctx.Status(http.StatusOK)
+	slog.Info("deleteEntity in controller finished")
 }

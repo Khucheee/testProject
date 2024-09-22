@@ -23,9 +23,6 @@ type EntityService interface {
 	DeleteEntity(context.Context, uuid.UUID) error
 }
 
-// todo спросить в Давида, надо ли хранить эти сущности в сервисе, ведь можно обращаться к ним через "Get(сущность)"
-// я за то, чтобы оставить так, ведь сильно меньше обработок ошибок при создании сервиса получается
-
 // entityService принимает данные от контроллера и отвечает за бизнес-логику приложения
 type entityService struct {
 	repository repository.EntityRepository
@@ -147,5 +144,4 @@ func (service *entityService) DeleteEntity(ctx context.Context, id uuid.UUID) er
 	service.cache.ClearCache(ctx)
 	slog.Info("service cleaned cache successfully")
 	return nil
-	//service.cache.DeleteEntity(entityForCache)
 }
