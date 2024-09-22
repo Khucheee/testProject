@@ -4,18 +4,19 @@ import (
 	"context"
 	"customers_kuber/closer"
 	"customers_kuber/config"
+	"customers_kuber/logger"
 	"customers_kuber/model"
 	"encoding/json"
 	"fmt"
 	kafka "github.com/segmentio/kafka-go"
 	"log"
+	"log/slog"
 )
 
 var entityProducerInstance *entityProducer
 
 type EntityProducer interface {
 	ProduceEntityToKafka(entity model.Entity) error
-	CloseEntityProducer() func()
 }
 
 type entityProducer struct {
@@ -41,7 +42,14 @@ func GetEntityProducer() (EntityProducer, error) {
 
 	//инициализируем инстанс продюсера, передаем функцию клозеру для graceful shutdown
 	entityProducerInstance = &entityProducer{writer}
-	closer.CloseFunctions = append(closer.CloseFunctions, entityProducerInstance.CloseEntityProducer())
+	closer.CloseFunctions = append(closer.CloseFunctions, func() {
+		if err := writer.Close(); err != nil {
+			slog.ErrorContext(logger.WithLogError(context.Background(), err), "failed to close entityProducer")
+			log.Println("producer closing failed:", err)
+			return
+		}
+		slog.Info("entityProducer closed successfully")
+	})
 	return entityProducerInstance, nil
 }
 
@@ -50,39 +58,21 @@ func (producer *entityProducer) ProduceEntityToKafka(entity model.Entity) error 
 	//парсим полученную структуру в json
 	message, err := json.Marshal(entity)
 	if err != nil {
-		log.Printf("failed to marshal JSON while produce into kafka: %s", err)
-		return err
+		return fmt.Errorf("failed to marshal JSON while produce into kafka: %s", err)
 	}
 
 	//отправляем сообщение в топик
 	idForKafka, err := entity.Id.MarshalBinary()
 	if err != nil {
-		log.Printf("failed to convert uuid into bytes in producer: %s", err)
-		return err
+		return fmt.Errorf("failed to convert uuid into bytes in producer: %s", err)
 	}
+	kafkaMessage := kafka.Message{Key: idForKafka, Value: message}
 
-	err = producer.writer.WriteMessages(context.Background(),
-		kafka.Message{
-			Key:   idForKafka,
-			Value: message,
-		},
-	)
-	if err != nil {
-		log.Printf("failed to produce message into kafka: %s", err)
-		return err
+	if err = producer.writer.WriteMessages(context.Background(), kafkaMessage); err != nil {
+		return fmt.Errorf("failed to produce message into kafka: %s", err)
 	}
+	slog.Info("entity successfully produced to kafka")
 	return nil
-
-}
-
-func (producer *entityProducer) CloseEntityProducer() func() {
-	return func() {
-		if err := producer.writer.Close(); err != nil {
-			log.Println("producer closing failed:", err)
-			return
-		}
-		log.Println("entityProducer closed successfully")
-	}
 }
 
 func CreateTopic() error {

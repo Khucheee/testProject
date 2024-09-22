@@ -84,7 +84,6 @@ func (service *entityService) SaveEntity(ctx context.Context, test model.Test) e
 	if err := service.producer.ProduceEntityToKafka(entity); err != nil {
 		return fmt.Errorf("failed to uptdate entity in service: %s", err)
 	}
-	slog.InfoContext(logger.WithLogValues(ctx, entity), "new entity successfully sent to kafka from service")
 	slog.Info("SaveEntity in service finished")
 	return nil
 }

@@ -59,13 +59,11 @@ func GetEntityRepository() (EntityRepository, error) {
 	closer.CloseFunctions = append(closer.CloseFunctions, func() {
 		dbInterface, err := dbConnect.DB()
 		if err != nil {
-			ctx = logger.WithLogError(ctx, err)
-			slog.ErrorContext(ctx, "failed to get DB interface while closing connection")
+			slog.ErrorContext(logger.WithLogError(ctx, err), "failed to get DB interface while closing connection")
 			return
 		}
 		if err := dbInterface.Close(); err != nil {
-			ctx = logger.WithLogError(ctx, err)
-			slog.ErrorContext(ctx, "failed while closing DB connection")
+			slog.ErrorContext(logger.WithLogError(ctx, err), "failed while closing DB connection")
 			return
 		}
 		slog.Info("entityRepository closed successfully")
